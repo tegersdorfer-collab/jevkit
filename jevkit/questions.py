@@ -8,7 +8,7 @@ Fragenkatalog beim Import auffällt und nicht als 422 im Betrieb.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 Json = str | int | float | bool | None | dict[str, Any] | list[Any]
@@ -23,7 +23,7 @@ class Noul:
     """Ja/Nein-Frage → P(ja). `criteria` = {"true": ..., "false": ...} schärft die Grenze."""
     instructions: Json
     criteria: dict[str, Json] | None = None
-    kind: str = "noul"
+    kind: str = field(default="noul", init=False)
 
     def payload(self) -> dict:
         d: dict = {"type": "noul", "instructions": self.instructions}
@@ -37,7 +37,7 @@ class Choice:
     """Eine Option aus einer festen Menge → Option + Verteilung + Confidence."""
     instructions: Json
     criteria: dict[str, Json]
-    kind: str = "choice"
+    kind: str = field(default="choice", init=False)
 
     def __post_init__(self) -> None:
         n = len(self.criteria)
@@ -53,7 +53,7 @@ class Score:
     """Position auf geordneten Leveln → Erwartungswert + Verteilung + Confidence."""
     instructions: Json
     criteria: tuple[Json, ...]
-    kind: str = "score"
+    kind: str = field(default="score", init=False)
 
     def __init__(self, instructions: Json, criteria: list[Json] | tuple[Json, ...]) -> None:
         levels = tuple(criteria)

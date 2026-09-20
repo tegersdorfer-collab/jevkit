@@ -40,3 +40,18 @@ def test_fragen_sind_immutable():
     q = Noul("x")
     with pytest.raises(AttributeError):
         q.instructions = "y"  # type: ignore[misc]
+
+
+def test_kind_nicht_ueberschreibbar():
+    """kind ist init=False und kann nicht übergeben werden."""
+    with pytest.raises(TypeError):
+        Noul("x", kind="override")  # type: ignore[call-arg]
+    with pytest.raises(TypeError):
+        Choice("x", {}, kind="override")  # type: ignore[call-arg]
+    with pytest.raises(TypeError):
+        Score("x", [], kind="override")  # type: ignore[call-arg]
+
+    # Korrekte kind-Werte
+    assert Noul("x").kind == "noul"
+    assert Choice("x", {"a": None}).kind == "choice"
+    assert Score("x", ["a", "b"]).kind == "score"
