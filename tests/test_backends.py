@@ -105,3 +105,25 @@ def test_static_backend_dict_und_handler():
     d = StaticBackend(handler, model="fake-1")
     assert asyncio.run(d.ask("yes", {"a": {}}, model=None, timeout_s=1)).answers["a"]["noul"] == 1.0
     assert asyncio.run(d.ask("no", {"a": {}}, model=None, timeout_s=1)).model == "fake-1"
+
+
+def test_kaputter_200_body_wird_backend_error():
+    # Test case (a): non-JSON response body
+    calls_a = {"n": 0}
+    def h_html(request):
+        calls_a["n"] += 1
+        return httpx.Response(200, text="<html>")
+    b_a = TypeSafeBackend("k", transport=httpx.MockTransport(h_html), retries=2)
+    with pytest.raises(BackendError) as ei:
+        asyncio.run(b_a.ask("s", {"q": {}}, model=None, timeout_s=5))
+    assert calls_a["n"] == 1 and ei.value.retryable is False
+
+    # Test case (b): JSON response missing "answers" key
+    calls_b = {"n": 0}
+    def h_no_answers(request):
+        calls_b["n"] += 1
+        return httpx.Response(200, json={"model": "m"})
+    b_b = TypeSafeBackend("k", transport=httpx.MockTransport(h_no_answers), retries=2)
+    with pytest.raises(BackendError) as ei:
+        asyncio.run(b_b.ask("s", {"q": {}}, model=None, timeout_s=5))
+    assert calls_b["n"] == 1 and ei.value.retryable is False

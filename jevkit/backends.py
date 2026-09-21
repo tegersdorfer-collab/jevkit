@@ -82,8 +82,15 @@ class HTTPBackend:
                 last = BackendError(f"Netzfehler: {e!r}", retryable=True)
             else:
                 if resp.status_code == 200:
-                    data = resp.json()
-                    return RawResponse(str(data.get("model", "")), data["answers"], data.get("usage") or {})
+                    try:
+                        data = resp.json()
+                        answers = data["answers"]
+                        if not isinstance(answers, dict):
+                            raise TypeError(f"answers ist kein dict: {type(answers)}")
+                        return RawResponse(str(data.get("model", "")), answers, data.get("usage") or {})
+                    except (ValueError, KeyError, TypeError) as e:
+                        last = BackendError(f"kaputte Antwort: {e!r}", retryable=False)
+                        raise last from e
                 last = BackendError(f"HTTP {resp.status_code}: {resp.text[:200]}",
                                     retryable=resp.status_code in RETRY_STATUS)
                 if not last.retryable:
