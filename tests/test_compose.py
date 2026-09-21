@@ -12,10 +12,22 @@ def _d(answers):
 
 def test_count_questions_und_count():
     items = ["Milch kaufen", "Zahnarzt anrufen", "Joggen"]
-    qs = count_questions("chore", items, lambda it: Noul({"item": it, "question": "Is this a household chore?"}))  # noqa: E501
+    qs = count_questions(
+        "chore",
+        items,
+        lambda it: Noul({"item": it, "question": "Is this a household chore?"}),
+    )
     assert list(qs) == ["chore:0", "chore:1", "chore:2"]
-    assert qs["chore:1"].instructions == {"item": "Zahnarzt anrufen", "question": "Is this a household chore?"}  # noqa: E501
-    d = _d({"chore:0": NoulAnswer(0.9), "chore:1": NoulAnswer(0.4), "chore:2": NoulAnswer(0.55), "x": NoulAnswer(1.0)})  # noqa: E501
+    assert qs["chore:1"].instructions == {
+        "item": "Zahnarzt anrufen",
+        "question": "Is this a household chore?",
+    }
+    d = _d({
+        "chore:0": NoulAnswer(0.9),
+        "chore:1": NoulAnswer(0.4),
+        "chore:2": NoulAnswer(0.55),
+        "x": NoulAnswer(1.0),
+    })
     assert count(d, "chore") == 2
     assert count(d, "chore", threshold=0.8) == 1
     assert count(d, "nothing") == 0
@@ -49,12 +61,34 @@ def test_extract_questions_form():
 
 
 def test_extract_aufloesung():
-    ok = _d({"due": ChoiceAnswer("2026-09-24", {"2026-09-24": 0.9, "2026-10-01": 0.05, NONE_OPTION: 0.05}, 0.85),  # noqa: E501
-             "due:stated": NoulAnswer(0.95)})
+    ok = _d({
+        "due": ChoiceAnswer(
+            "2026-09-24",
+            {"2026-09-24": 0.9, "2026-10-01": 0.05, NONE_OPTION: 0.05},
+            0.85,
+        ),
+        "due:stated": NoulAnswer(0.95),
+    })
     assert extract(ok, "due") == "2026-09-24"
     not_stated = _d({"due": ok["due"], "due:stated": NoulAnswer(0.2)})
     assert extract(not_stated, "due") is None
-    none = _d({"due": ChoiceAnswer(NONE_OPTION, {"2026-09-24": 0.1, NONE_OPTION: 0.9}, 0.8), "due:stated": NoulAnswer(0.9)})  # noqa: E501
+    none = _d({
+        "due": ChoiceAnswer(
+            NONE_OPTION,
+            {"2026-09-24": 0.1, NONE_OPTION: 0.9},
+            0.8,
+        ),
+        "due:stated": NoulAnswer(0.9),
+    })
     assert extract(none, "due") is None
-    weak = _d({"due": ChoiceAnswer("2026-09-24", {"2026-09-24": 0.5, "2026-10-01": 0.5}, 0.0), "due:stated": NoulAnswer(0.9)})  # noqa: E501
-    assert extract(weak, "due") is None and extract(weak, "due", min_confidence=0.0) == "2026-09-24"  # noqa: E501
+    weak = _d({
+        "due": ChoiceAnswer(
+            "2026-09-24",
+            {"2026-09-24": 0.5, "2026-10-01": 0.5},
+            0.0,
+        ),
+        "due:stated": NoulAnswer(0.9),
+    })
+    assert extract(weak, "due") is None and extract(
+        weak, "due", min_confidence=0.0
+    ) == "2026-09-24"

@@ -44,20 +44,33 @@ def composite(decision: Decision, weights: Mapping[str, float]) -> float:
     return acc
 
 
-def extract_questions(qid: str, instructions: Json, candidates: Sequence[str],  # noqa: E501
-                      stated: Json | None = None) -> dict[str, Question]:
+def extract_questions(
+    qid: str,
+    instructions: Json,
+    candidates: Sequence[str],
+    stated: Json | None = None,
+) -> dict[str, Question]:
     if not candidates:
         raise ValueError("extract_questions: mindestens ein Kandidat nötig")
     criteria: dict[str, Json] = {c: None for c in candidates}
     criteria[NONE_OPTION] = "None of the listed candidates applies"
+    default_stated = {
+        "question": f"Does the content explicitly state a value for `{qid}`?",
+        "field": qid,
+    }
     return {
         qid: Choice(instructions, criteria),
-        f"{qid}:stated": Noul(stated or {"question": f"Does the content explicitly state a value for `{qid}`?",  # noqa: E501
-                                          "field": qid}),
+        f"{qid}:stated": Noul(stated or default_stated),
     }
 
 
-def extract(decision: Decision, qid: str, *, min_confidence: float = 0.5, stated_at: float = 0.5) -> str | None:  # noqa: E501
+def extract(
+    decision: Decision,
+    qid: str,
+    *,
+    min_confidence: float = 0.5,
+    stated_at: float = 0.5,
+) -> str | None:
     """Gewählter Kandidat oder None (nicht genannt, keiner passt, zu unsicher)."""
     stated = decision[f"{qid}:stated"]
     choice = decision[qid]

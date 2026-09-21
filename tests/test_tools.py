@@ -4,7 +4,7 @@ from jevkit.answers import ChoiceAnswer, NoulAnswer
 from jevkit.client import Decision
 from jevkit.compose import NONE_OPTION
 from jevkit.questions import Choice, Noul
-from jevkit.tools import TOOL_QID, Arg, Call, ToolSpec, call_questions, resolve_call  # noqa: F401
+from jevkit.tools import TOOL_QID, Arg, ToolSpec, call_questions, resolve_call
 
 LAMP = ToolSpec("lamp", "Switch the desk lamp on or off",
                 args=(Arg("power", "Should the lamp be on or off?", {"on": None, "off": None}),))
@@ -46,7 +46,11 @@ def test_resolve_call_min_confidence_und_optional():
 
     d2 = Decision({**d.answers, "timer.label:stated": NoulAnswer(0.95)}, "m", {}, False, 0.0)
     call2 = resolve_call(d2, [LAMP, TIMER])
-    assert call2.args == {"minutes": "10", "label": "tea"} and call2.omitted == () and abs(call2.confidence - 0.1) < 1e-9  # noqa: E501
+    assert (
+        call2.args == {"minutes": "10", "label": "tea"}
+        and call2.omitted == ()
+        and abs(call2.confidence - 0.1) < 1e-9
+    )
 
 
 def test_resolve_call_none():

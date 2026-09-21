@@ -46,8 +46,10 @@ def _arg_qid(tool: str, arg: str) -> str:
     return f"{tool}.{arg}"
 
 
-def call_questions(tools: Sequence[ToolSpec],  # noqa: E501
-                   instructions: Json = "What is the user asking the assistant to do?") -> dict[str, Question]:  # noqa: E501
+def call_questions(
+    tools: Sequence[ToolSpec],
+    instructions: Json = "What is the user asking the assistant to do?",
+) -> dict[str, Question]:
     if not tools:
         raise ValueError("call_questions: mindestens ein Tool nötig")
     names = [t.name for t in tools]
@@ -58,10 +60,17 @@ def call_questions(tools: Sequence[ToolSpec],  # noqa: E501
     qs: dict[str, Question] = {TOOL_QID: Choice(instructions, criteria)}
     for t in tools:
         for a in t.args:
-            qs[_arg_qid(t.name, a.name)] = Choice(a.instructions, dict(a.options))
+            qs[_arg_qid(t.name, a.name)] = Choice(
+                a.instructions, dict(a.options)
+            )
             if not a.required:
+                stated_default = {
+                    "question": f"Does the user explicitly mention `{a.name}`?",
+                    "argument": a.name,
+                }
                 qs[f"{_arg_qid(t.name, a.name)}:stated"] = Noul(
-                    a.stated or {"question": f"Does the user explicitly mention `{a.name}`?", "argument": a.name})  # noqa: E501
+                    a.stated or stated_default
+                )
     return qs
 
 
