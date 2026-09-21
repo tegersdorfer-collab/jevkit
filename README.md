@@ -16,12 +16,12 @@ this library. Nothing here is a prompt trick — it's code that does what the mo
 
 - One runtime dependency (`httpx`). Python 3.11+.
 - Works with the TypeSafe API and the OpenRouter `/api/alpha/decisions` endpoint (same body).
-- 80 tests, no network in tests.
+- 81 tests, no network in tests.
 
 ## Install
 
 ```bash
-pip install "jevkit @ git+https://github.com/tegersdorfer-collab/jevkit.git@v0.1.1"
+pip install "jevkit @ git+https://github.com/tegersdorfer-collab/jevkit.git@v0.1.2"
 export OPENROUTER_API_KEY=...   # or TYPESAFE_API_KEY for direct access
 ```
 

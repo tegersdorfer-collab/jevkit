@@ -31,7 +31,7 @@ from jevkit.state import (
 from jevkit.taxonomy import Path, beam_search
 from jevkit.tools import TOOL_QID, Arg, Call, ToolSpec, call_questions, resolve_call
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 __all__ = [
     "Noul", "Choice", "Score", "NoulAnswer", "ChoiceAnswer", "ScoreAnswer", "parse_answer",

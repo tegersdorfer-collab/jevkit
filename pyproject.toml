@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jevkit"
-version = "0.1.1"
+version = "0.1.2"
 description = "Decision kernel for TypeSafe Jev (System One): typed questions, bands, state building, composition."
 requires-python = ">=3.11"
 dependencies = ["httpx>=0.27"]
