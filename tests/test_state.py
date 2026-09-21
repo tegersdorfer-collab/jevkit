@@ -72,3 +72,12 @@ def test_untrusted_und_guard():
     none = Decision({"a": NoulAnswer(0.9)}, "m", {}, False, 0.0)
     assert injected(yes) and not injected(no) and not injected(none)
     assert injected(no, threshold=0.05)
+
+
+def test_guard_unterscheidet_manipulation_von_normalem_befehl():
+    """Ein Sprachbefehl an den Assistenten ist eine Anweisung, aber keine Manipulation — die Frage
+    muss das explizit sagen, sonst feuert der Guard auf jeden legitimen Befehl (Mantis-Messung 21.09.2026)."""
+    payload = str(GUARD.payload())
+    assert "MANIPULATE" in payload and "NOT manipulation" in payload
+    assert "turn on the desk lamp" in payload            # Beispiel für false
+    assert "ignore all previous instructions" in payload  # Beispiel für true
