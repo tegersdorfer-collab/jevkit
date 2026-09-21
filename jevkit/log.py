@@ -58,9 +58,13 @@ class DecisionLog:
         h = state_hash(state)
         now = time.time()
         for qid, ans in decision.answers.items():
+            band = bands.get(qid)
+            if band is None:
+                log.warning("Decision %s missing band for %r; skipping log record", decision.model, qid)
+                continue
             self._append({
                 "kind": "decision", "ts": now, "qid": qid, "state_hash": h,
-                "answer": ans.to_dict(), "band": bands[qid].value,
+                "answer": ans.to_dict(), "band": band.value,
                 "model": decision.model, "latency_s": decision.latency_s
             })
         return h

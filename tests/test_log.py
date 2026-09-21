@@ -37,6 +37,17 @@ def test_write_records_outcome(tmp_path):
     assert (tmp_path / "d.jsonl").read_text().count("\n") == 4
 
 
+def test_write_skips_answer_without_band(tmp_path, caplog):
+    lg = DecisionLog(tmp_path / "d.jsonl")
+    d = Decision({"a": NoulAnswer(0.9), "b": NoulAnswer(0.1)}, "jev-1.13.0", {}, False, 0.1)
+
+    with caplog.at_level("WARNING"):
+        lg.write(d, {"a": Band.ACT}, {"x": 1})
+
+    assert [record.qid for record in lg.records()] == ["a"]
+    assert any("missing band" in record.message and "b" in record.message for record in caplog.records)
+
+
 def test_state_hash_is_stable():
     assert state_hash({"a": 1, "b": 2}) == state_hash({"b": 2, "a": 1})
     assert state_hash("x") != state_hash("y")

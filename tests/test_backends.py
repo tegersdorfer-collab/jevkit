@@ -4,6 +4,7 @@ import json
 import httpx
 import pytest
 
+import jevkit.backends as backends
 from jevkit.backends import (
     BackendError,
     OpenRouterBackend,
@@ -64,6 +65,29 @@ def test_retry_on_520_then_success():
     b = TypeSafeBackend("k", transport=httpx.MockTransport(h), retries=2, backoff_s=0.0)
     r = asyncio.run(b.ask("s", {"q": {"type": "noul", "instructions": "?"}}, model=None, timeout_s=5))
     assert calls["n"] == 2 and r.answers["q"]["noul"] == 0.9
+
+
+def test_retry_reuses_one_async_client(monkeypatch):
+    created = []
+    client_type = backends.httpx.AsyncClient
+
+    class TrackingClient(client_type):
+        def __init__(self, *args, **kwargs):
+            created.append(self)
+            super().__init__(*args, **kwargs)
+
+    monkeypatch.setattr(backends.httpx, "AsyncClient", TrackingClient)
+    calls = {"n": 0}
+
+    def h(request):
+        calls["n"] += 1
+        return httpx.Response(503) if calls["n"] == 1 else _ok(request)
+
+    b = TypeSafeBackend("k", transport=httpx.MockTransport(h), retries=1, backoff_s=0.0)
+    r = asyncio.run(b.ask("s", {"q": {}}, model=None, timeout_s=5))
+
+    assert r.answers["q"]["noul"] == 0.9
+    assert calls["n"] == 2 and len(created) == 1
 
 
 def test_no_retry_on_422_and_retries_0():

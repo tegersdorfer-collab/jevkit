@@ -74,29 +74,29 @@ class HTTPBackend:
         payload = json.dumps(body, ensure_ascii=False).encode()
         headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
         last: BackendError | None = None
-        for attempt in range(self.retries + 1):
-            try:
-                async with httpx.AsyncClient(timeout=timeout_s, transport=self.transport) as client:
+        async with httpx.AsyncClient(timeout=timeout_s, transport=self.transport) as client:
+            for attempt in range(self.retries + 1):
+                try:
                     resp = await client.post(self.url, content=payload, headers=headers)
-            except httpx.HTTPError as e:
-                last = BackendError(f"network error: {e!r}", retryable=True)
-            else:
-                if resp.status_code == 200:
-                    try:
-                        data = resp.json()
-                        answers = data["answers"]
-                        if not isinstance(answers, dict):
-                            raise TypeError(f"answers is not a dict: {type(answers)}")
-                        return RawResponse(str(data.get("model", "")), answers, data.get("usage") or {})
-                    except (ValueError, KeyError, TypeError) as e:
-                        last = BackendError(f"broken response: {e!r}", retryable=False)
-                        raise last from e
-                last = BackendError(f"HTTP {resp.status_code}: {resp.text[:200]}",
-                                    retryable=resp.status_code in RETRY_STATUS)
-                if not last.retryable:
-                    raise last
-            if attempt < self.retries:
-                await asyncio.sleep(self.backoff_s * (2 ** attempt))
+                except httpx.HTTPError as e:
+                    last = BackendError(f"network error: {e!r}", retryable=True)
+                else:
+                    if resp.status_code == 200:
+                        try:
+                            data = resp.json()
+                            answers = data["answers"]
+                            if not isinstance(answers, dict):
+                                raise TypeError(f"answers is not a dict: {type(answers)}")
+                            return RawResponse(str(data.get("model", "")), answers, data.get("usage") or {})
+                        except (ValueError, KeyError, TypeError) as e:
+                            last = BackendError(f"broken response: {e!r}", retryable=False)
+                            raise last from e
+                    last = BackendError(f"HTTP {resp.status_code}: {resp.text[:200]}",
+                                        retryable=resp.status_code in RETRY_STATUS)
+                    if not last.retryable:
+                        raise last
+                if attempt < self.retries:
+                    await asyncio.sleep(self.backoff_s * (2 ** attempt))
         assert last is not None
         raise last
 
