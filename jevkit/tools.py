@@ -80,7 +80,9 @@ def resolve_call(decision: Decision, tools: Sequence[ToolSpec], *, stated_at: fl
         raise TypeError("resolve_call: __tool__ muss eine Choice sein")
     if tool_ans.choice == NONE_OPTION:
         return None
-    spec = next(t for t in tools if t.name == tool_ans.choice)
+    spec = next((t for t in tools if t.name == tool_ans.choice), None)
+    if spec is None:
+        raise ValueError(f"resolve_call: Tool {tool_ans.choice!r} ist nicht in tools")
     conf = tool_ans.confidence
     args: dict[str, str] = {}
     omitted: list[str] = []

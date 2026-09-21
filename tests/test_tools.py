@@ -57,3 +57,10 @@ def test_resolve_call_none():
     d = Decision({TOOL_QID: _c(NONE_OPTION, {"lamp": 0.1, NONE_OPTION: 0.9}, 0.8),
                   "lamp.power": _c("on", {"on": 1.0, "off": 0.0}, 1.0)}, "m", {}, False, 0.0)
     assert resolve_call(d, [LAMP]) is None
+
+
+def test_resolve_call_unbekanntes_tool():
+    d = Decision({TOOL_QID: _c("lamp", {"lamp": 0.9, NONE_OPTION: 0.1}, 0.85)}, "m", {}, False, 0.0)
+    with pytest.raises(ValueError) as exc_info:
+        resolve_call(d, [TIMER])
+    assert "lamp" in str(exc_info.value)
