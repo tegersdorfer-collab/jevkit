@@ -1,0 +1,40 @@
+from jevkit.answers import ChoiceAnswer, NoulAnswer
+from jevkit.client import Decision
+from jevkit.gate import Band
+from jevkit.log import DecisionLog, state_hash
+
+
+def test_write_records_outcome(tmp_path):
+    lg = DecisionLog(tmp_path / "d.jsonl")
+    d = Decision(
+        {
+            "a": NoulAnswer(0.9),
+            "k": ChoiceAnswer("x", {"x": 0.7, "y": 0.3}, 0.4)
+        },
+        "jev-1.13.0", {}, False, 0.12
+    )
+    h = lg.write(d, {"a": Band.ACT, "k": Band.CONFIRM}, {"t": "hallo"})
+    assert h == state_hash({"t": "hallo"}) and len(h) == 64
+    recs = lg.records()
+    assert [r.qid for r in recs] == ["a", "k"]
+    assert (
+        recs[0].answer == NoulAnswer(0.9)
+        and recs[0].band is Band.ACT
+        and recs[0].model == "jev-1.13.0"
+    )
+    assert (
+        recs[1].answer == ChoiceAnswer("x", {"x": 0.7, "y": 0.3}, 0.4)
+        and recs[0].correct is None
+    )
+    lg.outcome("a", h, correct=False)
+    recs = lg.records()
+    assert recs[0].correct is False and recs[1].correct is None
+    lg.outcome("a", h, correct=True)                       # letzter Eintrag gewinnt
+    assert lg.records()[0].correct is True
+    assert DecisionLog(tmp_path / "leer.jsonl").records() == []
+    assert (tmp_path / "d.jsonl").read_text().count("\n") == 4
+
+
+def test_state_hash_stabil():
+    assert state_hash({"a": 1, "b": 2}) == state_hash({"b": 2, "a": 1})
+    assert state_hash("x") != state_hash("y")
