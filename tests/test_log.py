@@ -38,3 +38,22 @@ def test_write_records_outcome(tmp_path):
 def test_state_hash_stabil():
     assert state_hash({"a": 1, "b": 2}) == state_hash({"b": 2, "a": 1})
     assert state_hash("x") != state_hash("y")
+
+
+def test_kaputte_zeile_wird_uebersprungen(tmp_path, caplog):
+    lg = DecisionLog(tmp_path / "d.jsonl")
+    d = Decision({"a": NoulAnswer(0.9)}, "jev-1.0", {}, False, 0.1)
+    lg.write(d, {"a": Band.ACT}, {"x": 1})
+    # Append a truncated line (crash mid-append)
+    with (tmp_path / "d.jsonl").open("a", encoding="utf-8") as f:
+        f.write('{"kind": "decision", "ts": 1')  # no newline
+    # records() must skip the broken line and return the valid record
+    recs = lg.records()
+    assert len(recs) == 1 and recs[0].qid == "a"
+    # Check caplog for warning
+    assert any(
+        "übersprungen" in record.message
+        and record.name == "jevkit.log"
+        and record.levelname == "WARNING"
+        for record in caplog.records
+    )

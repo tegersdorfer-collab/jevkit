@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -18,6 +19,8 @@ from typing import Any
 from jevkit.answers import Answer, parse_answer
 from jevkit.client import Decision
 from jevkit.gate import Band
+
+log = logging.getLogger(__name__)
 
 
 def state_hash(state: Any) -> str:
@@ -68,10 +71,16 @@ class DecisionLog:
             return []
         decisions: list[dict] = []
         outcomes: dict[tuple[str, str], bool] = {}
-        for line in self.path.read_text(encoding="utf-8").splitlines():
+        for lineno, line in enumerate(
+            self.path.read_text(encoding="utf-8").splitlines(), start=1
+        ):
             if not line.strip():
                 continue
-            row = json.loads(line)
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                log.warning("Log-Zeile %d übersprungen: %r", lineno, line[:80])
+                continue
             if row.get("kind") == "outcome":
                 outcomes[(row["qid"], row["state_hash"])] = bool(row["correct"])
             else:
