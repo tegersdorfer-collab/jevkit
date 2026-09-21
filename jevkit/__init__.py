@@ -1,10 +1,10 @@
 """
-jevkit – Decision Kernel für TypeSafe Jev (System One).
+jevkit - Decision kernel for TypeSafe Jev (System One).
 
-Jev beantwortet typisierte Fragen mit kalibrierten Wahrscheinlichkeiten; jevkit sorgt dafür,
-dass der Code die Kontrolle behält: State vorbereiten (state), Fragen komponieren
-(compose/tools/taxonomy), einen Call pro State (client), Antwort in ein Band übersetzen
-(gate/registry) und aus Outcomes nachkalibrieren (log/calibrate).
+Jev answers typed questions with calibrated probabilities; jevkit makes sure the code
+stays in control: prepare the state (state), compose questions (compose/tools/taxonomy),
+one call per state (client), translate the answer into a band (gate/registry), and
+recalibrate from outcomes (log/calibrate).
 """
 from jevkit.answers import ChoiceAnswer, NoulAnswer, ScoreAnswer, parse_answer
 from jevkit.backends import BackendError, OpenRouterBackend, StaticBackend, TypeSafeBackend

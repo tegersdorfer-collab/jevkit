@@ -10,7 +10,7 @@ def _d(answers):
     return Decision(answers, "m", {}, False, 0.0)
 
 
-def test_count_questions_und_count():
+def test_count_questions_and_count():
     items = ["Milch kaufen", "Zahnarzt anrufen", "Joggen"]
     qs = count_questions(
         "chore",
@@ -33,12 +33,12 @@ def test_count_questions_und_count():
     assert count(d, "nothing") == 0
 
 
-def test_composite_gewichtete_summe():
+def test_composite_weighted_sum():
     s = lambda score: ScoreAnswer(score, {"0": "a", "1": "b", "2": "c", "3": "d", "4": "e"},  # noqa: E731
                                   {str(i): 0.2 for i in range(5)}, 0.5)
     d = _d({"python": s(4.0), "lead": s(2.0), "design": s(0.0)})
     assert abs(composite(d, {"python": 0.5, "lead": 0.3, "design": 0.2}) - (0.5 * 1.0 + 0.3 * 0.5)) < 1e-9
-    assert abs(composite(d, {"python": 2, "lead": 2}) - 0.75) < 1e-9   # Gewichte werden normiert
+    assert abs(composite(d, {"python": 2, "lead": 2}) - 0.75) < 1e-9   # weights are normalized
     with pytest.raises(TypeError):
         composite(_d({"n": NoulAnswer(0.5)}), {"n": 1.0})
     with pytest.raises(ValueError):
@@ -60,7 +60,7 @@ def test_extract_questions_form():
         extract_questions("x", "?", [])
 
 
-def test_extract_aufloesung():
+def test_extract_resolution():
     ok = _d({
         "due": ChoiceAnswer(
             "2026-09-24",

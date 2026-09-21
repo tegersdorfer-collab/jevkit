@@ -14,7 +14,7 @@ def _noul(p):
     return {"type": "noul", "noul": p}
 
 
-def test_decide_typisiert_alle_antworten():
+def test_decide_types_all_answers():
     b = StaticBackend(
         {
             "a": _noul(0.93),
@@ -54,12 +54,12 @@ def test_decide_typisiert_alle_antworten():
     )
 
 
-def test_leere_fragen_sind_caller_bug():
+def test_empty_questions_is_caller_bug():
     with pytest.raises(ValueError):
         asyncio.run(Client(StaticBackend({})).decide("x", {}))
 
 
-def test_nicht_serialisierbarer_state_ist_caller_bug_und_oeffnet_keinen_breaker():
+def test_non_serializable_state_is_caller_bug_and_does_not_open_breaker():
     b = StaticBackend({"q": _noul(0.5)})
     c = Client(b)
     with pytest.raises(TypeError):
@@ -67,8 +67,8 @@ def test_nicht_serialisierbarer_state_ist_caller_bug_und_oeffnet_keinen_breaker(
     assert c.available is True and b.calls == []
 
 
-def test_typ_mismatch_oeffnet_breaker():
-    """Antwort-Typ passt nicht zur Frage (z.B. Schema geändert) → JevUnavailable + Cooldown."""
+def test_type_mismatch_opens_breaker():
+    """Answer type doesn't match the question (e.g. schema changed) -> JevUnavailable + cooldown."""
     b = StaticBackend({"q": {"type": "score", "score": 0.5}})
     c = Client(b, cooldown_s=100)
     with pytest.raises(JevUnavailable):
@@ -76,7 +76,7 @@ def test_typ_mismatch_oeffnet_breaker():
     assert c.available is False
 
 
-def test_fehlende_antwort_und_kaputte_form_werden_unavailable():
+def test_missing_answer_and_broken_shape_become_unavailable():
     for answers in ({}, {"q": "kaputt"},
                     {"q": {"type": "choice", "choice": "r", "probabilities": {"f": 0.9}, "confidence": 0.9}}):
         c = Client(StaticBackend(answers))
@@ -84,7 +84,7 @@ def test_fehlende_antwort_und_kaputte_form_werden_unavailable():
             asyncio.run(c.decide("x", {"q": Choice("?", {"f": None, "r": None})}))
 
 
-def test_backend_fehler_oeffnet_breaker_und_schliesst_nach_cooldown():
+def test_backend_error_opens_breaker_and_closes_after_cooldown():
     t = {"now": 0.0}
     calls = {"n": 0}
     def h(request):
@@ -96,7 +96,7 @@ def test_backend_fehler_oeffnet_breaker_und_schliesst_nach_cooldown():
     with pytest.raises(JevUnavailable):
         asyncio.run(c.decide("x", {"q": Noul("?")}))
     assert c.available is False
-    with pytest.raises(JevUnavailable):          # im Cooldown: kein Netz
+    with pytest.raises(JevUnavailable):          # in cooldown: no network call
         asyncio.run(c.decide("x", {"q": Noul("?")}))
     assert calls["n"] == 1
     t["now"] = 121.0
@@ -106,7 +106,7 @@ def test_backend_fehler_oeffnet_breaker_und_schliesst_nach_cooldown():
     assert c.available is True
 
 
-def test_gesamtbudget_timeout_wird_unavailable():
+def test_overall_budget_timeout_becomes_unavailable():
     async def h(request):
         await asyncio.sleep(0.2)
         return httpx.Response(200, json={"model": "m", "answers": {"q": _noul(0.9)}, "usage": {}})
@@ -117,7 +117,7 @@ def test_gesamtbudget_timeout_wird_unavailable():
     assert c.available is False
 
 
-def test_cache_trifft_bei_gleichem_input():
+def test_cache_hits_on_same_input():
     b = StaticBackend({"q": _noul(0.7)})
     c = Client(b, cache=MemoryCache())
     d1 = asyncio.run(c.decide({"a": 1}, {"q": Noul("?")}))
@@ -127,7 +127,7 @@ def test_cache_trifft_bei_gleichem_input():
     assert len(b.calls) == 2 and d2["q"].p == 0.7
 
 
-def test_expected_model_warnt_bei_anderer_version(caplog):
+def test_expected_model_warns_on_different_version(caplog):
     b = StaticBackend({"q": _noul(0.7)}, model="typesafe/jev-2.0")
     c = Client(b, expected_model="typesafe/jev-1.13")
     with caplog.at_level("WARNING", logger="jevkit.client"):
@@ -135,7 +135,7 @@ def test_expected_model_warnt_bei_anderer_version(caplog):
     assert d.model == "typesafe/jev-2.0" and "jev-2.0" in caplog.text and "jev-1.13" in caplog.text
 
 
-def test_modell_wird_an_backend_durchgereicht():
+def test_model_is_passed_through_to_backend():
     seen = {}
     def h(request):
         seen["model"] = json.loads(request.content)["model"]

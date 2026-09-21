@@ -1,14 +1,14 @@
 """
-JSONL-Log jeder Frage: Antwort, Band, Modell, Latenz, State-Hash. Outcomes (richtig /
-falsch, z.B. weil der Nutzer korrigiert hat) werden als eigene Zeilen nachgetragen und
-beim Lesen per (qid, state_hash) gemergt — der letzte Eintrag gewinnt. Daraus baut
-`calibrate` Brier/ECE und Band-Vorschläge. Der State selbst wird NICHT geloggt (Privacy),
-nur sein Hash.
+JSONL log of every question: answer, band, model, latency, state hash. Outcomes
+(correct / incorrect, e.g. because the user corrected it) are appended as separate
+lines and merged on read by (qid, state_hash) - the last entry wins. `calibrate` builds
+Brier/ECE and band suggestions from this. The state itself is NOT logged (privacy),
+only its hash.
 
-Achtung: `answer.to_dict()` loggt bei Choice/Score die vollen Optionsnamen (`choice`,
-`legend`) mit — bei `compose.extract` sind das wörtliche Inhaltskandidaten aus dem State,
-keine anonymen Labels. Wer das nicht loggen will, protokolliert nur Nouls oder redigiert
-die Antwort vor dem `write`.
+Note: for Choice/Score, `answer.to_dict()` also logs the full option names (`choice`,
+`legend`) - for `compose.extract` these are literal content candidates from the state,
+not anonymous labels. If you don't want that logged, log Nouls only or redact the
+answer before `write`.
 """
 from __future__ import annotations
 
@@ -84,7 +84,7 @@ class DecisionLog:
             try:
                 row = json.loads(line)
             except json.JSONDecodeError:
-                log.warning("Log-Zeile %d übersprungen: %r", lineno, line[:80])
+                log.warning("Log line %d skipped: %r", lineno, line[:80])
                 continue
             if row.get("kind") == "outcome":
                 outcomes[(row["qid"], row["state_hash"])] = bool(row["correct"])
@@ -99,6 +99,6 @@ class DecisionLog:
                     outcomes.get((r["qid"], r["state_hash"]))
                 ))
             except (ValueError, KeyError, TypeError):
-                log.warning("Log-Zeile %d übersprungen (kaputte Decision): %r",
+                log.warning("Log line %d skipped (corrupt decision): %r",
                            lineno, str(r)[:80])
         return out

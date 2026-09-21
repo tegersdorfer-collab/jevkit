@@ -1,11 +1,11 @@
 """
-Typisierte Antworten. Jede Antwort hat `kind`, `value`, `p` (Wahrscheinlichkeit des
-gewählten Werts) und `confidence` (0 = Münzwurf, 1 = sicher). Noul hat laut API keine
-Confidence — wir leiten |p − 0,5|·2 ab, damit das Gate alle Typen gleich behandelt.
+Typed answers. Every answer has `kind`, `value`, `p` (probability of the chosen value)
+and `confidence` (0 = coin flip, 1 = certain). Per the API, Noul has no confidence — we
+derive |p - 0.5| * 2 so the gate can treat all types the same.
 
-`parse_answer` ist die einzige Stelle, die rohe API-Dicts anfasst. Alles Kaputte wird
-ValueError, damit der Client den Breaker öffnen kann (ein geändertes Schema soll nicht
-jeden Turn erneut den Roundtrip kosten).
+`parse_answer` is the only place that touches raw API dicts. Anything broken becomes a
+ValueError so the client can open the breaker (a changed schema shouldn't cost a
+roundtrip on every turn).
 """
 from __future__ import annotations
 
@@ -67,9 +67,9 @@ class ScoreAnswer:
         return int(round(self.score))
 
     def _levels(self) -> list[int]:
-        """Level-Indizes aus den `probabilities`-Keys. Sind die Keys numerisch (z.B.
-        aus `legend`/API), werden sie sortiert; sonst (z.B. `{"low": .., "high": ..}`)
-        zählen wir sie in Key-Reihenfolge positional durch (0..n-1)."""
+        """Level indices from the `probabilities` keys. If the keys are numeric (e.g.
+        from `legend`/API) they are sorted; otherwise (e.g. `{"low": .., "high": ..}`)
+        we count them positionally in key order (0..n-1)."""
         keys = list(self.probabilities)
         try:
             return sorted(int(k) for k in keys)
@@ -88,7 +88,7 @@ class ScoreAnswer:
 
     @property
     def normalized(self) -> float:
-        """Score auf 0–1, unabhängig davon, ob die Level 0- oder 1-basiert sind."""
+        """Score on 0-1, regardless of whether the levels are 0- or 1-based."""
         levels = self._levels()
         span = levels[-1] - levels[0]
         return 0.0 if span == 0 else (self.score - levels[0]) / span
@@ -108,14 +108,14 @@ Answer = NoulAnswer | ChoiceAnswer | ScoreAnswer
 
 def _probs(raw: Any) -> dict[str, float]:
     if not isinstance(raw, dict):
-        raise ValueError("probabilities muss ein Objekt sein")
+        raise ValueError("probabilities must be an object")
     return {str(k): float(v) for k, v in raw.items()}
 
 
 def parse_answer(raw: Any) -> Answer:
-    """Rohes API-Dict → Answer. Wirft ValueError bei jeder Abweichung vom Schema."""
+    """Raw API dict -> Answer. Raises ValueError on any deviation from the schema."""
     if not isinstance(raw, dict):
-        raise ValueError(f"Antwort ist kein Objekt: {type(raw).__name__}")
+        raise ValueError(f"answer is not an object: {type(raw).__name__}")
     try:
         kind = raw["type"]
         if kind == "noul":
@@ -124,11 +124,11 @@ def parse_answer(raw: Any) -> Answer:
             probs = _probs(raw["probabilities"])
             choice = str(raw["choice"])
             if choice not in probs:
-                raise ValueError(f"choice {choice!r} fehlt in probabilities")
+                raise ValueError(f"choice {choice!r} missing from probabilities")
             return ChoiceAnswer(choice, probs, float(raw["confidence"]))
         if kind == "score":
-            # legend ist rein informativ (Anzeige) und darf die Entscheidung nie zum
-            # Scheitern bringen: dict, list (→ {"0": .., "1": ..}) oder fehlend/kaputt.
+            # legend is purely informational (display) and must never make the
+            # decision fail: dict, list (-> {"0": .., "1": ..}) or missing/broken.
             raw_legend = raw.get("legend")
             if isinstance(raw_legend, dict):
                 legend = {str(k): v for k, v in raw_legend.items()}
@@ -139,5 +139,5 @@ def parse_answer(raw: Any) -> Answer:
             return ScoreAnswer(float(raw["score"]), legend,
                                _probs(raw["probabilities"]), float(raw["confidence"]))
     except (KeyError, TypeError) as e:
-        raise ValueError(f"Antwort unvollständig: {e!r}") from e
-    raise ValueError(f"unbekannter Antworttyp {raw.get('type')!r}")
+        raise ValueError(f"answer incomplete: {e!r}") from e
+    raise ValueError(f"unknown answer type {raw.get('type')!r}")

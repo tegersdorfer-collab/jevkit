@@ -1,11 +1,10 @@
 """
-Ein Call pro State, alle Fragen parallel. Der Client besitzt das Gesamt-Zeitbudget
-(asyncio.timeout über Connect+Read+Parse), den Circuit-Breaker und den Cache.
+One call per state, all questions in parallel. The client owns the overall time budget
+(asyncio.timeout over connect+read+parse), the circuit breaker, and the cache.
 
-Vertrag: `decide()` liefert entweder vollständige, typgeprüfte Antworten oder wirft
-JevUnavailable — nie halbe Ergebnisse. Caller-Bugs (leere Fragen, nicht
-serialisierbarer State) fliegen als ValueError/TypeError VOR dem Netz und öffnen
-den Breaker nicht.
+Contract: `decide()` either returns complete, type-checked answers or raises
+JevUnavailable - never partial results. Caller bugs (empty questions, non-serializable
+state) raise as ValueError/TypeError BEFORE the network call and don't open the breaker.
 """
 from __future__ import annotations
 
@@ -25,7 +24,7 @@ log = logging.getLogger(__name__)
 
 
 class JevUnavailable(Exception):
-    """Jev nicht nutzbar (Cooldown, Timeout, Transport/HTTP-Fehler, kaputte Antwort)."""
+    """Jev not usable (cooldown, timeout, transport/HTTP error, broken response)."""
 
 
 @dataclass(frozen=True)
@@ -68,22 +67,22 @@ class Client:
         out: dict[str, Answer] = {}
         for qid, q in questions.items():
             if qid not in raw.answers:
-                raise ValueError(f"Antwort für {qid!r} fehlt")
+                raise ValueError(f"answer for {qid!r} is missing")
             ans = parse_answer(raw.answers[qid])
             if ans.kind != q.kind:
-                raise ValueError(f"{qid!r}: Frage ist {q.kind}, Antwort ist {ans.kind}")
+                raise ValueError(f"{qid!r}: question is {q.kind}, answer is {ans.kind}")
             out[qid] = ans
         return out
 
     async def decide(self, state: Any, questions: Mapping[str, Question]) -> Decision:
         if not questions:
-            raise ValueError("mindestens eine Frage nötig")
+            raise ValueError("at least one question is required")
         payload = {qid: q.payload() for qid, q in questions.items()}
-        key = cache_key(self.model, state, payload)   # json.dumps → TypeError bei Caller-Bug, vor dem Netz
+        key = cache_key(self.model, state, payload)   # json.dumps -> TypeError on caller bug, before network
         if self.cache is not None and (hit := self.cache.get(key)) is not None:
             return Decision(self._typed(hit, questions), hit.model, hit.usage, True, 0.0)
         if not self.available:
-            raise JevUnavailable("Jev im Cooldown")
+            raise JevUnavailable("Jev in cooldown")
         t0 = time.perf_counter()
         try:
             async with asyncio.timeout(self.timeout_s):
@@ -91,12 +90,12 @@ class Client:
             answers = self._typed(raw, questions)
         except (TimeoutError, BackendError, ValueError, TypeError, KeyError) as e:
             self._down_until = self._clock() + self.cooldown_s
-            log.warning("Jev nicht nutzbar, %.0fs Cooldown: %r", self.cooldown_s, e)
+            log.warning("Jev unavailable, %.0fs cooldown: %r", self.cooldown_s, e)
             raise JevUnavailable(str(e)) from e
         latency = time.perf_counter() - t0
         if self.expected_model and not raw.model.startswith(self.expected_model):
             log.warning(
-                "Jev-Modell %r statt erwartet %r — Bänder neu kalibrieren",
+                "Jev model %r instead of expected %r - recalibrate bands",
                 raw.model,
                 self.expected_model,
             )

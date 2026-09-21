@@ -1,13 +1,13 @@
 """
-Transport zu Jev. Beide offiziellen Endpunkte nehmen denselben Body
-{model, state, questions} und liefern {model, answers, usage}:
+Transport to Jev. Both official endpoints take the same body
+{model, state, questions} and return {model, answers, usage}:
 
-  TypeSafe direkt:  POST https://api.typesafe.ai/v1/systemone      Modell "jev-latest"
-  OpenRouter:       POST https://openrouter.ai/api/alpha/decisions Modell "~typesafe/jev-latest"
+  TypeSafe direct:  POST https://api.typesafe.ai/v1/systemone      model "jev-latest"
+  OpenRouter:       POST https://openrouter.ai/api/alpha/decisions model "~typesafe/jev-latest"
 
-Retry gehört hierher (das Backend kennt die Statuscodes), das Gesamt-Zeitbudget und
-der Circuit-Breaker in den Client. 429/529 sind laut Doku mit Backoff zu wiederholen,
-520/522/524 (Cloudflare) wurden in der Praxis beobachtet.
+Retry belongs here (the backend knows the status codes); the overall time budget and
+the circuit breaker belong in the client. Per the docs, 429/529 should be retried with
+backoff; 520/522/524 (Cloudflare) have been observed in practice.
 """
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ class RawResponse:
 
 
 class BackendError(Exception):
-    """Transport- oder HTTP-Fehler. `retryable` sagt dem Aufrufer, ob Wiederholen sinnvoll ist."""
+    """Transport or HTTP error. `retryable` tells the caller whether retrying makes sense."""
 
     def __init__(self, message: str, *, retryable: bool) -> None:
         super().__init__(message)
@@ -47,7 +47,7 @@ class Backend(Protocol):
 
 
 class HTTPBackend:
-    """Generischer HTTP-Transport; TypeSafeBackend/OpenRouterBackend setzen nur URL, Modell, Env-Var."""
+    """Generic HTTP transport; TypeSafeBackend/OpenRouterBackend only set URL, model, env var."""
 
     url: str = TYPESAFE_URL
     default_model: str = "jev-latest"
@@ -58,7 +58,7 @@ class HTTPBackend:
                  backoff_s: float = 0.5) -> None:
         key = api_key or os.environ.get(self.env_var, "")
         if not key:
-            raise BackendError(f"kein API-Key: Argument api_key oder ${self.env_var} setzen", retryable=False)
+            raise BackendError(f"no API key: pass api_key or set ${self.env_var}", retryable=False)
         self.api_key = key
         if url:
             self.url = url
@@ -79,17 +79,17 @@ class HTTPBackend:
                 async with httpx.AsyncClient(timeout=timeout_s, transport=self.transport) as client:
                     resp = await client.post(self.url, content=payload, headers=headers)
             except httpx.HTTPError as e:
-                last = BackendError(f"Netzfehler: {e!r}", retryable=True)
+                last = BackendError(f"network error: {e!r}", retryable=True)
             else:
                 if resp.status_code == 200:
                     try:
                         data = resp.json()
                         answers = data["answers"]
                         if not isinstance(answers, dict):
-                            raise TypeError(f"answers ist kein dict: {type(answers)}")
+                            raise TypeError(f"answers is not a dict: {type(answers)}")
                         return RawResponse(str(data.get("model", "")), answers, data.get("usage") or {})
                     except (ValueError, KeyError, TypeError) as e:
-                        last = BackendError(f"kaputte Antwort: {e!r}", retryable=False)
+                        last = BackendError(f"broken response: {e!r}", retryable=False)
                         raise last from e
                 last = BackendError(f"HTTP {resp.status_code}: {resp.text[:200]}",
                                     retryable=resp.status_code in RETRY_STATUS)
@@ -118,7 +118,7 @@ Handler = Callable[[Any, dict[str, dict]], dict[str, Any]]
 
 @dataclass
 class StaticBackend:
-    """Für Tests: feste Antworten oder ein Handler (state, questions) -> answers. Zeichnet Calls auf."""
+    """For tests: fixed answers or a handler (state, questions) -> answers. Records calls."""
 
     answers: dict[str, Any] | Handler
     model: str = "static"

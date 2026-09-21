@@ -1,7 +1,7 @@
 """
-Cache auf (Modell, State, Fragen). Jev ist fast deterministisch (Std 0,01 über
-Wiederholungen), daher ist ein Treffer so gut wie ein neuer Call — und spart ihn.
-LRU mit TTL; abgelaufene Einträge werden lazy beim Zugriff entfernt.
+Cache keyed on (model, state, questions). Jev is nearly deterministic (std dev 0.01
+across repeats), so a hit is as good as a fresh call - and saves one. LRU with TTL;
+expired entries are removed lazily on access.
 """
 from __future__ import annotations
 

@@ -1,10 +1,10 @@
 """
-Die drei Jev-Primitive auf der Request-Seite.
+The three Jev primitives on the request side.
 
-Regeln aus der TypeSafe-Doku (docs.typesafe.ai/primitives): Choice ≤ 255 Optionen,
-Score 2–10 geordnete Level, Instructions und Criteria dürfen Strings oder
-JSON-Strukturen sein. Die Validierung passiert hier, damit ein Fehler im
-Fragenkatalog beim Import auffällt und nicht als 422 im Betrieb.
+Rules from the TypeSafe docs (docs.typesafe.ai/primitives): Choice <= 255 options,
+Score 2-10 ordered levels, instructions and criteria may be strings or JSON
+structures. Validation happens here so an error in the question catalog surfaces
+at import time instead of as a 422 in production.
 """
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ MAX_SCORE_LEVELS = 10
 
 @dataclass(frozen=True)
 class Noul:
-    """Ja/Nein-Frage → P(ja). `criteria` = {"true": ..., "false": ...} schärft die Grenze."""
+    """Yes/no question -> P(yes). `criteria` = {"true": ..., "false": ...} sharpens the boundary."""
     instructions: Json
     criteria: dict[str, Json] | None = None
     kind: str = field(default="noul", init=False)
@@ -34,7 +34,7 @@ class Noul:
 
 @dataclass(frozen=True)
 class Choice:
-    """Eine Option aus einer festen Menge → Option + Verteilung + Confidence."""
+    """One option out of a fixed set -> option + distribution + confidence."""
     instructions: Json
     criteria: dict[str, Json]
     kind: str = field(default="choice", init=False)
@@ -42,7 +42,7 @@ class Choice:
     def __post_init__(self) -> None:
         n = len(self.criteria)
         if not 1 <= n <= MAX_CHOICE_OPTIONS:
-            raise ValueError(f"Choice braucht 1–{MAX_CHOICE_OPTIONS} Optionen, hat {n}")
+            raise ValueError(f"Choice needs 1-{MAX_CHOICE_OPTIONS} options, has {n}")
 
     def payload(self) -> dict:
         return {"type": "choice", "instructions": self.instructions, "criteria": self.criteria}
@@ -50,7 +50,7 @@ class Choice:
 
 @dataclass(frozen=True)
 class Score:
-    """Position auf geordneten Leveln → Erwartungswert + Verteilung + Confidence."""
+    """Position on ordered levels -> expected value + distribution + confidence."""
     instructions: Json
     criteria: tuple[Json, ...]
     kind: str = field(default="score", init=False)
@@ -58,7 +58,7 @@ class Score:
     def __init__(self, instructions: Json, criteria: list[Json] | tuple[Json, ...]) -> None:
         levels = tuple(criteria)
         if not MIN_SCORE_LEVELS <= len(levels) <= MAX_SCORE_LEVELS:
-            raise ValueError(f"Score braucht {MIN_SCORE_LEVELS}–{MAX_SCORE_LEVELS} Level, hat {len(levels)}")
+            raise ValueError(f"Score needs {MIN_SCORE_LEVELS}-{MAX_SCORE_LEVELS} levels, has {len(levels)}")
         object.__setattr__(self, "instructions", instructions)
         object.__setattr__(self, "criteria", levels)
         object.__setattr__(self, "kind", "score")

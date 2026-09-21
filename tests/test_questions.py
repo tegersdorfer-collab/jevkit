@@ -3,7 +3,7 @@ import pytest
 from jevkit.questions import Choice, Noul, Score
 
 
-def test_noul_payload_ohne_und_mit_criteria():
+def test_noul_payload_with_and_without_criteria():
     assert Noul("Is it a refund request?").payload() == {
         "type": "noul", "instructions": "Is it a refund request?"
     }
@@ -13,7 +13,7 @@ def test_noul_payload_ohne_und_mit_criteria():
     assert q.kind == "noul"
 
 
-def test_choice_payload_und_grenzen():
+def test_choice_payload_and_limits():
     q = Choice("Which category?", {"bug": "software defect", "feature": None})
     assert q.payload() == {"type": "choice", "instructions": "Which category?",
                            "criteria": {"bug": "software defect", "feature": None}}
@@ -22,10 +22,10 @@ def test_choice_payload_und_grenzen():
         Choice("?", {})
     with pytest.raises(ValueError):
         Choice("?", {f"o{i}": None for i in range(256)})
-    Choice("?", {f"o{i}": None for i in range(255)})  # Obergrenze inklusive
+    Choice("?", {f"o{i}": None for i in range(255)})  # upper bound inclusive
 
 
-def test_score_payload_und_grenzen():
+def test_score_payload_and_limits():
     q = Score("Severity?", ["none", "low", "high"])
     assert q.payload() == {"type": "score", "instructions": "Severity?", "criteria": ["none", "low", "high"]}
     assert q.kind == "score"
@@ -36,14 +36,14 @@ def test_score_payload_und_grenzen():
         Score("?", [str(i) for i in range(11)])
 
 
-def test_fragen_sind_immutable():
+def test_questions_are_immutable():
     q = Noul("x")
     with pytest.raises(AttributeError):
         q.instructions = "y"  # type: ignore[misc]
 
 
-def test_kind_nicht_ueberschreibbar():
-    """kind ist init=False und kann nicht übergeben werden."""
+def test_kind_is_not_overridable():
+    """kind is init=False and cannot be passed in."""
     with pytest.raises(TypeError):
         Noul("x", kind="override")  # type: ignore[call-arg]
     with pytest.raises(TypeError):
@@ -51,7 +51,7 @@ def test_kind_nicht_ueberschreibbar():
     with pytest.raises(TypeError):
         Score("x", [], kind="override")  # type: ignore[call-arg]
 
-    # Korrekte kind-Werte
+    # correct kind values
     assert Noul("x").kind == "noul"
     assert Choice("x", {"a": None}).kind == "choice"
     assert Score("x", ["a", "b"]).kind == "score"

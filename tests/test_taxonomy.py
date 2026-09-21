@@ -22,7 +22,7 @@ def _choice(probs):
 
 
 def _handler(state, questions):
-    """Ambig auf Ebene 1 (software 0.45 vs hardware 0.4), eindeutig darunter."""
+    """Ambiguous at level 1 (software 0.45 vs hardware 0.4), unambiguous below that."""
     (qid, q), = questions.items()
     opts = list(q["criteria"])
     if opts == ["hardware", "software", "other"]:
@@ -36,25 +36,25 @@ def _handler(state, questions):
     raise AssertionError(opts)
 
 
-def test_path_score_geometrisches_mittel():
+def test_path_score_geometric_mean():
     p = Path(("a", "b"), (0.5, 0.8))
     assert abs(p.score - math.sqrt(0.4)) < 1e-9 and p.leaf == "b"
     assert Path((), ()).score == 0.0
 
 
-def test_beam_findet_tiefen_pfad_den_greedy_verpasst():
+def test_beam_finds_deep_path_greedy_misses():
     b = StaticBackend(_handler)
     paths = asyncio.run(beam_search(Client(b), "I love playing Zelda", TREE, k=3))
     assert paths[0].nodes == ("software", "apps", "games")
     assert all(paths[i].score >= paths[i + 1].score for i in range(len(paths) - 1))
     assert len(paths) <= 3
-    # Greedy (k=1) landet ebenfalls bei software → apps → games, aber "hardware/laptop" ist mit
-    # k=1 nie im Beam
+    # Greedy (k=1) also lands on software -> apps -> games, but "hardware/laptop" is
+    # never in the beam with k=1
     greedy = asyncio.run(beam_search(Client(StaticBackend(_handler)), "x", TREE, k=1))
     assert len(greedy) == 1 and greedy[0].nodes == ("software", "apps", "games")
 
 
-def test_beam_fragen_zeigen_teilbaum_und_beschreibung():
+def test_beam_questions_show_subtree_and_description():
     seen = []
     def h(state, questions):
         seen.append(questions)
@@ -65,12 +65,12 @@ def test_beam_fragen_zeigen_teilbaum_und_beschreibung():
     assert root_q["criteria"]["software"] == {"contains": ["os", "apps"]}
 
 
-def test_beam_leerer_baum():
+def test_beam_empty_tree():
     with pytest.raises(ValueError):
         asyncio.run(beam_search(Client(StaticBackend({})), "x", {}))
 
 
-def test_beam_frage_enthaelt_elternpfad():
+def test_beam_question_contains_parent_path():
     seen = []
 
     def h(state, questions):

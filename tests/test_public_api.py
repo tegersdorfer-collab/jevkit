@@ -1,7 +1,7 @@
 import jevkit
 
 
-def test_alle_exporte_vorhanden():
+def test_all_exports_present():
     names = ["Noul", "Choice", "Score", "NoulAnswer", "ChoiceAnswer", "ScoreAnswer", "parse_answer",
              "Client", "Decision", "JevUnavailable", "MemoryCache",
              "TypeSafeBackend", "OpenRouterBackend", "StaticBackend", "PromptBackend", "BackendError",

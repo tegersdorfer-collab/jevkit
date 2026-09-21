@@ -1,11 +1,11 @@
 """
-Hierarchische Klassifikation per Beam-Search (docs.typesafe.ai/cookbooks/hierarchical_classification):
-pro Ebene eine Choice über die direkten Kinder, K Pfade bleiben im Rennen, alle
-Frontier-Pfade werden parallel gefragt. Pfad-Score = geometrisches Mittel der
-Kantenwahrscheinlichkeiten, damit flache und tiefe Blätter fair vergleichbar sind.
-Greedy kann eine ambige frühe Entscheidung nicht reparieren, Beam schon (Cookbook: 2/4 vs 4/4).
+Hierarchical classification via beam search (docs.typesafe.ai/cookbooks/hierarchical_classification):
+one Choice per level over the direct children, K paths stay in the running, and all
+frontier paths are asked in parallel. Path score = geometric mean of the edge
+probabilities, so shallow and deep leaves compare fairly.
+Greedy can't fix an ambiguous early decision, beam can (cookbook: 2/4 vs 4/4).
 
-Baum: {knoten: kinder-dict | beschreibung}. Ein Nicht-Dict-Wert ist ein Blatt.
+Tree: {node: children-dict | description}. A non-dict value is a leaf.
 """
 from __future__ import annotations
 
@@ -56,7 +56,7 @@ async def beam_search(client: Client, state: Any, tree: Tree, *, k: int = 3,
                       instructions: Json = "Which direct child category best matches the content?",
                       max_listed: int = 20) -> list[Path]:
     if not tree:
-        raise ValueError("beam_search: leerer Baum")
+        raise ValueError("beam_search: empty tree")
     frontier = [Path((), ())]
     finished: list[Path] = []
     qid = "child"

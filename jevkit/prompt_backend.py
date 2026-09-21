@@ -1,13 +1,12 @@
 """
-Jev-Emulation über ein Text-LLM (z.B. Ollama) — für lokale/private Entscheidungen und
-als Fallback. UNKALIBRIERT: Choice/Score liefern One-Hot-Verteilungen mit Confidence 1,
-Noul eine vom LLM geschätzte Prozentzahl. Deshalb meldet sich das Backend als
-"prompt:<name>", und der Router demotet Bänder: entweder weil `calibrated_model` nicht
-passt, oder — wenn dieses Backend ein CLOUD-Spec als Fallback beantwortet — automatisch,
-unabhängig von `calibrated_model` (siehe `registry.Router._verdicts`).
-Eine Frage pro Prompt (Text-LLMs beantworten Fan-outs nicht isoliert). Anfragen laufen
-über ein `asyncio.Semaphore(concurrency)`, um ein lokales LLM nicht mit Fan-outs zu
-überlasten.
+Jev emulation over a text LLM (e.g. Ollama) - for local/private decisions and as a
+fallback. UNCALIBRATED: Choice/Score return one-hot distributions with confidence 1,
+Noul a percentage estimated by the LLM. That's why this backend reports itself as
+"prompt:<name>", and the router demotes bands: either because `calibrated_model`
+doesn't match, or - when this backend answers a CLOUD spec as a fallback -
+automatically, regardless of `calibrated_model` (see `registry.Router._verdicts`).
+One question per prompt (text LLMs don't answer fan-outs in isolation). Requests run
+through an `asyncio.Semaphore(concurrency)` so a local LLM isn't overloaded by fan-outs.
 """
 from __future__ import annotations
 
@@ -63,7 +62,7 @@ def build_prompt(state: Any, qid: str, question: dict) -> str:
             head + f"LEVELS:\n{levels}\n"
             "Reply with the level number only."
         )
-    raise BackendError(f"unbekannter Fragetyp {kind!r}", retryable=False)
+    raise BackendError(f"unknown question type {kind!r}", retryable=False)
 
 
 def parse_reply(question: dict, reply: str) -> dict:
@@ -73,12 +72,12 @@ def parse_reply(question: dict, reply: str) -> dict:
         m = _NUM.search(text)
         if not m:
             raise BackendError(
-                f"Noul-Antwort ohne Zahl: {text[:80]!r}", retryable=False
+                f"Noul answer without a number: {text[:80]!r}", retryable=False
             )
         num = m.group(1)
         value = float(num)
-        # Enthält der Treffer einen Punkt, ist es ein Anteil (0.7 → 0,7);
-        # sonst eine Prozentzahl (85 → 0,85, 7% → 0,07, 1 → 0,01).
+        # If the match contains a dot, it's a fraction (0.7 -> 0.7);
+        # otherwise a percentage (85 -> 0.85, 7% -> 0.07, 1 -> 0.01).
         frac = value if "." in num else value / 100
         return {"type": "noul", "noul": min(max(frac, 0.0), 1.0)}
     if kind == "choice":
@@ -90,7 +89,7 @@ def parse_reply(question: dict, reply: str) -> dict:
         )
         if hit is None:
             raise BackendError(
-                f"Choice-Antwort passt zu keiner Option: {text[:80]!r}",
+                f"Choice answer matches no option: {text[:80]!r}",
                 retryable=False
             )
         return {
@@ -103,7 +102,7 @@ def parse_reply(question: dict, reply: str) -> dict:
         m = _INT.search(text)
         if not m or not 0 <= int(m.group()) < len(levels):
             raise BackendError(
-                f"Score-Antwort kein gültiges Level: {text[:80]!r}",
+                f"Score answer is not a valid level: {text[:80]!r}",
                 retryable=False
             )
         idx = int(m.group())
@@ -116,7 +115,7 @@ def parse_reply(question: dict, reply: str) -> dict:
             },
             "confidence": 1.0
         }
-    raise BackendError(f"unbekannter Fragetyp {kind!r}", retryable=False)
+    raise BackendError(f"unknown question type {kind!r}", retryable=False)
 
 
 class PromptBackend:

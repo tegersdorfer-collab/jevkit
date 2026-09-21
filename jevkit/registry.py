@@ -1,11 +1,11 @@
 """
-Alle Entscheidungen einer Anwendung an EINER Stelle: Frage, Schwere, Datenschutz,
-Bänder, kalibrierte Modellversion. Der Router wählt das Backend nach `privacy`
-(LOCAL darf nie in die Cloud), fällt bei Cloud-Ausfall auf lokal zurück und demotet
-das Band, wenn das antwortende Modell nicht das ist, für das die Bänder kalibriert
-wurden. Ein CLOUD-Spec, das über das lokale Fallback-Backend beantwortet wird, gilt
-dabei IMMER als unkalibriert (`Verdict.calibrated=False`) — unabhängig davon, ob
-`calibrated_model` gesetzt ist, weil das lokale Modell nie das kalibrierte ist.
+All decisions of an application in ONE place: question, severity, privacy, bands,
+calibrated model version. The router picks the backend by `privacy` (LOCAL must never
+go to the cloud), falls back to local on a cloud outage, and demotes the band when the
+responding model isn't the one the bands were calibrated for. A CLOUD spec that gets
+answered via the local fallback backend is ALWAYS considered uncalibrated
+(`Verdict.calibrated=False`) - regardless of whether `calibrated_model` is set, because
+the local model is never the calibrated one.
 """
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from jevkit.questions import Question
 
 
 class Privacy(Enum):
-    LOCAL = "local"   # State darf das Gerät nicht verlassen
+    LOCAL = "local"   # state must not leave the device
     CLOUD = "cloud"
 
 
@@ -31,7 +31,7 @@ class DecisionSpec:
     severity: Severity = Severity.READ
     privacy: Privacy = Privacy.CLOUD
     bands: Bands | None = None
-    calibrated_model: str | None = None   # Präfix, z.B. "typesafe/jev-1.13"
+    calibrated_model: str | None = None   # prefix, e.g. "typesafe/jev-1.13"
 
     @property
     def effective_bands(self) -> Bands:
@@ -53,7 +53,7 @@ class Registry:
 
     def register(self, spec: DecisionSpec) -> DecisionSpec:
         if spec.id in self._specs:
-            raise ValueError(f"Entscheidung {spec.id!r} ist schon registriert")
+            raise ValueError(f"decision {spec.id!r} is already registered")
         self._specs[spec.id] = spec
         return spec
 
@@ -83,8 +83,8 @@ class Router:
         for i in ids:
             spec = self.registry.get(i)
             ans = decision[i]
-            # Ein Fallback-Backend beantwortet nie das kalibrierte Modell, egal
-            # was `calibrated_model` sagt: die Bänder passen dann grundsätzlich nicht.
+            # A fallback backend never answers as the calibrated model, no matter
+            # what `calibrated_model` says: the bands then fundamentally don't fit.
             calibrated = not fallback and (spec.calibrated_model is None or
                                            decision.model.startswith(spec.calibrated_model))
             b = band(ans, spec.effective_bands)
@@ -97,7 +97,7 @@ class Router:
         qs = self.registry.questions(ids)
         if privacy is Privacy.LOCAL:
             if self.local is None:
-                raise JevUnavailable("kein lokales Backend für LOCAL-Entscheidungen")
+                raise JevUnavailable("no local backend for LOCAL decisions")
             return self._verdicts(await self.local.decide(state, qs), ids, fallback=False)
         if self.cloud is not None:
             try:
@@ -106,14 +106,14 @@ class Router:
                 if self.local is None:
                     raise
         if self.local is None:
-            raise JevUnavailable("kein Backend verfügbar")
-        # CLOUD-Spec, aber über das lokale Backend beantwortet (Fallback nach
-        # JevUnavailable oder weil gar kein Cloud-Client konfiguriert ist) →
-        # nie kalibriert, Band wird demotet.
+            raise JevUnavailable("no backend available")
+        # CLOUD spec, but answered via the local backend (fallback after
+        # JevUnavailable, or because no cloud client is configured at all) ->
+        # never calibrated, band gets demoted.
         return self._verdicts(await self.local.decide(state, qs), ids, fallback=True)
 
     async def decide(self, state, ids: Sequence[str]) -> dict[str, Verdict]:
-        specs = [self.registry.get(i) for i in ids]   # KeyError für unbekannte IDs, vor jedem Call
+        specs = [self.registry.get(i) for i in ids]   # KeyError for unknown IDs, before any call
         out: dict[str, Verdict] = {}
         for privacy in (Privacy.CLOUD, Privacy.LOCAL):
             group = [s.id for s in specs if s.privacy is privacy]

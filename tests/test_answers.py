@@ -3,7 +3,7 @@ import pytest
 from jevkit.answers import ChoiceAnswer, NoulAnswer, ScoreAnswer, parse_answer
 
 
-def test_noul_answer_ableitungen():
+def test_noul_answer_derived_properties():
     a = NoulAnswer(0.93)
     assert a.kind == "noul" and a.value is True and a.p == 0.93
     assert abs(a.confidence - 0.86) < 1e-9
@@ -11,12 +11,12 @@ def test_noul_answer_ableitungen():
     assert NoulAnswer(0.1).value is False and abs(NoulAnswer(0.1).confidence - 0.8) < 1e-9
 
 
-def test_choice_answer_ableitungen():
+def test_choice_answer_derived_properties():
     a = ChoiceAnswer("flipper", {"flipper": 0.9, "robot": 0.1}, 0.88)
     assert a.kind == "choice" and a.value == "flipper" and a.p == 0.9 and a.confidence == 0.88
 
 
-def test_score_answer_normalisierung():
+def test_score_answer_normalization():
     a = ScoreAnswer(2.4, {"0": "none", "1": "low", "2": "mid", "3": "high"},
                     {"0": 0.0, "1": 0.1, "2": 0.4, "3": 0.5}, 0.35)
     assert a.kind == "score" and a.value == 2.4 and a.level == 2
@@ -26,15 +26,15 @@ def test_score_answer_normalisierung():
     assert one_based.normalized == 1.0
 
 
-def test_score_answer_nicht_numerische_keys_positional():
-    # Keys nicht int()-fähig → positionale Indizes 0..n-1 in Key-Reihenfolge.
+def test_score_answer_non_numeric_keys_positional():
+    # Keys not int()-able -> positional indices 0..n-1 in key order.
     a = ScoreAnswer(1.0, {}, {"low": 0.2, "high": 0.8}, 0.6)
     assert a.level == 1
     assert a.normalized == 1.0
     assert abs(a.p - 0.8) < 1e-9
 
 
-def test_parse_answer_alle_typen():
+def test_parse_answer_all_types():
     assert parse_answer({"type": "noul", "noul": 0.6}) == NoulAnswer(0.6)
     c = parse_answer({
         "type": "choice", "choice": "a", "probabilities": {"a": 0.7, "b": 0.3}, "confidence": 0.4
@@ -45,7 +45,7 @@ def test_parse_answer_alle_typen():
     assert isinstance(s, ScoreAnswer) and s.score == 1.5
 
 
-def test_parse_answer_score_legend_liste_oder_fehlend():
+def test_parse_answer_score_legend_list_or_missing():
     s = parse_answer({"type": "score", "score": 1.0, "legend": ["none", "low", "high"],
                       "probabilities": {"0": 0.0, "1": 1.0, "2": 0.0}, "confidence": 0.5})
     assert s.legend == {"0": "none", "1": "low", "2": "high"}
@@ -65,7 +65,7 @@ def test_parse_answer_score_legend_liste_oder_fehlend():
     {"type": "choice", "choice": "robot", "probabilities": {"flipper": 0.9}, "confidence": 0.9},
     {"type": "score", "score": 0.5},
 ])
-def test_parse_answer_lehnt_kaputtes_ab(raw):
+def test_parse_answer_rejects_broken_input(raw):
     with pytest.raises(ValueError):
         parse_answer(raw)
 

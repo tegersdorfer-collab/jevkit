@@ -31,18 +31,18 @@ def test_write_records_outcome(tmp_path):
     lg.outcome("a", h, correct=False)
     recs = lg.records()
     assert recs[0].correct is False and recs[1].correct is None
-    lg.outcome("a", h, correct=True)                       # letzter Eintrag gewinnt
+    lg.outcome("a", h, correct=True)                       # last entry wins
     assert lg.records()[0].correct is True
     assert DecisionLog(tmp_path / "leer.jsonl").records() == []
     assert (tmp_path / "d.jsonl").read_text().count("\n") == 4
 
 
-def test_state_hash_stabil():
+def test_state_hash_is_stable():
     assert state_hash({"a": 1, "b": 2}) == state_hash({"b": 2, "a": 1})
     assert state_hash("x") != state_hash("y")
 
 
-def test_kaputte_zeile_wird_uebersprungen(tmp_path, caplog):
+def test_corrupt_line_is_skipped(tmp_path, caplog):
     lg = DecisionLog(tmp_path / "d.jsonl")
     d = Decision({"a": NoulAnswer(0.9)}, "jev-1.0", {}, False, 0.1)
     lg.write(d, {"a": Band.ACT}, {"x": 1})
@@ -54,18 +54,18 @@ def test_kaputte_zeile_wird_uebersprungen(tmp_path, caplog):
     assert len(recs) == 1 and recs[0].qid == "a"
     # Check caplog for warning
     assert any(
-        "übersprungen" in record.message
+        "skipped" in record.message
         and record.name == "jevkit.log"
         and record.levelname == "WARNING"
         for record in caplog.records
     )
 
 
-def test_kaputte_decision_zeile_wird_uebersprungen(tmp_path, caplog):
+def test_corrupt_decision_line_is_skipped(tmp_path, caplog):
     lg = DecisionLog(tmp_path / "d.jsonl")
     d = Decision({"a": NoulAnswer(0.9), "b": NoulAnswer(0.8)}, "jev-1.0", {}, False, 0.1)
     lg.write(d, {"a": Band.ACT, "b": Band.ACT}, {"x": 1})
-    # Valides JSON, aber kein gültiges Band -> darf records() nicht crashen.
+    # Valid JSON, but not a valid band -> records() must not crash.
     with (tmp_path / "d.jsonl").open("a", encoding="utf-8") as f:
         f.write(json.dumps({
             "kind": "decision", "ts": 1.0, "qid": "c", "state_hash": "h",
@@ -75,7 +75,7 @@ def test_kaputte_decision_zeile_wird_uebersprungen(tmp_path, caplog):
     recs = lg.records()
     assert [r.qid for r in recs] == ["a", "b"]
     assert any(
-        "übersprungen" in record.message and "kaputte Decision" in record.message
+        "skipped" in record.message and "corrupt decision" in record.message
         and record.name == "jevkit.log" and record.levelname == "WARNING"
         for record in caplog.records
     )

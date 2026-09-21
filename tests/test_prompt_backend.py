@@ -22,7 +22,7 @@ SCORE = {
 }
 
 
-def test_build_prompt_enthaelt_state_frage_und_format():
+def test_build_prompt_contains_state_question_and_format():
     p = build_prompt({"msg": "Geld zurück!"}, "q", NOUL)
     assert "Geld zurück!" in p and "Is this a refund request?" in p and "asks for money" in p
     assert "0" in p and "100" in p
@@ -40,15 +40,15 @@ def test_parse_reply_noul():
         parse_reply(NOUL, "keine Ahnung")
 
 
-def test_parse_reply_noul_dezimal_als_anteil():
-    # Enthält der Zahlentreffer einen Punkt, ist es ein Anteil, sonst eine Prozentzahl.
+def test_parse_reply_noul_decimal_as_fraction():
+    # If the numeric match contains a dot, it's a fraction; otherwise a percentage.
     assert parse_reply(NOUL, "0.7") == {"type": "noul", "noul": 0.7}
     assert parse_reply(NOUL, "1") == {"type": "noul", "noul": 0.01}
     assert parse_reply(NOUL, "85") == {"type": "noul", "noul": 0.85}
     assert parse_reply(NOUL, "7%") == {"type": "noul", "noul": 0.07}
 
 
-def test_parse_reply_choice_wortgrenzen():
+def test_parse_reply_choice_word_boundaries():
     on_off = {
         "type": "choice",
         "instructions": "An oder aus?",
@@ -59,7 +59,7 @@ def test_parse_reply_choice_wortgrenzen():
     assert parse_reply(on_off, "turn it on")["choice"] == "on"
 
 
-def test_parse_reply_choice_und_score():
+def test_parse_reply_choice_and_score():
     result = parse_reply(CHOICE, "  Bug  ")
     assert result == {
         "type": "choice", "choice": "bug",
@@ -80,7 +80,7 @@ def test_parse_reply_choice_und_score():
         parse_reply(SCORE, "7")
 
 
-def test_backend_fragt_pro_frage_und_liefert_raw_response():
+def test_backend_asks_per_question_and_returns_raw_response():
     prompts = []
     async def ask(prompt):
         prompts.append(prompt)
@@ -102,7 +102,7 @@ def test_backend_fragt_pro_frage_und_liefert_raw_response():
     assert len(prompts) == 2
 
 
-def test_backend_begrenzt_parallelitaet():
+def test_backend_limits_parallelism():
     current = 0
     peak = 0
 

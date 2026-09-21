@@ -19,7 +19,7 @@ def _ok(request):
                                      "usage": {"input_tokens": 5, "output_tokens": 0}})
 
 
-def test_typesafe_backend_sendet_richtigen_body_und_header():
+def test_typesafe_backend_sends_correct_body_and_header():
     seen = {}
     def h(request):
         seen["url"] = str(request.url)
@@ -35,7 +35,7 @@ def test_typesafe_backend_sendet_richtigen_body_und_header():
     assert r.model == "typesafe/jev-1.13" and r.answers["q"]["noul"] == 0.9 and r.usage["input_tokens"] == 5
 
 
-def test_openrouter_backend_url_und_modell():
+def test_openrouter_backend_url_and_model():
     seen = {}
     def h(request):
         seen["url"] = str(request.url)
@@ -47,7 +47,7 @@ def test_openrouter_backend_url_und_modell():
     assert seen["model"] == "~typesafe/jev-latest"
 
 
-def test_api_key_aus_umgebung(monkeypatch):
+def test_api_key_from_environment(monkeypatch):
     monkeypatch.setenv("TYPESAFE_API_KEY", "sk-env")
     b = TypeSafeBackend(transport=httpx.MockTransport(_ok))
     assert b.api_key == "sk-env"
@@ -56,7 +56,7 @@ def test_api_key_aus_umgebung(monkeypatch):
         TypeSafeBackend(transport=httpx.MockTransport(_ok))
 
 
-def test_retry_bei_520_dann_erfolg():
+def test_retry_on_520_then_success():
     calls = {"n": 0}
     def h(request):
         calls["n"] += 1
@@ -66,7 +66,7 @@ def test_retry_bei_520_dann_erfolg():
     assert calls["n"] == 2 and r.answers["q"]["noul"] == 0.9
 
 
-def test_kein_retry_bei_422_und_retries_0():
+def test_no_retry_on_422_and_retries_0():
     calls = {"n": 0}
     def h(request):
         calls["n"] += 1
@@ -86,7 +86,7 @@ def test_kein_retry_bei_422_und_retries_0():
     assert calls["n"] == 1 and ei.value.retryable is True
 
 
-def test_netzfehler_wird_backend_error():
+def test_network_error_becomes_backend_error():
     def h(request):
         raise httpx.ReadTimeout("langsam")
     b = TypeSafeBackend("k", transport=httpx.MockTransport(h), retries=0)
@@ -95,7 +95,7 @@ def test_netzfehler_wird_backend_error():
     assert ei.value.retryable is True
 
 
-def test_static_backend_dict_und_handler():
+def test_static_backend_dict_and_handler():
     s = StaticBackend({"q": {"type": "noul", "noul": 0.2}})
     r = asyncio.run(s.ask("st", {"q": {}}, model=None, timeout_s=1))
     assert r.answers["q"]["noul"] == 0.2 and r.model == "static" and s.calls == [("st", {"q": {}})]
@@ -107,7 +107,7 @@ def test_static_backend_dict_und_handler():
     assert asyncio.run(d.ask("no", {"a": {}}, model=None, timeout_s=1)).model == "fake-1"
 
 
-def test_kaputter_200_body_wird_backend_error():
+def test_broken_200_body_becomes_backend_error():
     # Test case (a): non-JSON response body
     calls_a = {"n": 0}
     def h_html(request):

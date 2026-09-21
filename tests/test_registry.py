@@ -33,7 +33,7 @@ def test_registry_basics():
         r.get("nope")
 
 
-def test_router_teilt_nach_privacy_und_baendert():
+def test_router_splits_by_privacy_and_bands():
     cloud = StaticBackend({"addressed": {"type": "noul", "noul": 0.95},
                            "delete_ok": {"type": "noul", "noul": 0.8}},
                           model="typesafe/jev-1.13.0")
@@ -48,21 +48,21 @@ def test_router_teilt_nach_privacy_und_baendert():
     assert set(cloud.calls[0][1]) == {"addressed", "delete_ok"} and set(local.calls[0][1]) == {"fact"}
 
 
-def test_router_unkalibriertes_modell_wird_demotet():
+def test_router_uncalibrated_model_is_demoted():
     cloud = StaticBackend({"delete_ok": {"type": "noul", "noul": 0.99}}, model="typesafe/jev-2.0")
     v = asyncio.run(Router(_reg(), cloud=Client(cloud)).decide("x", ["delete_ok"]))
     assert v["delete_ok"].calibrated is False and v["delete_ok"].band is Band.CONFIRM
 
 
-def test_router_faellt_von_cloud_auf_local():
-    cloud = Client(StaticBackend({}))                      # liefert keine Antworten → JevUnavailable
+def test_router_falls_back_from_cloud_to_local():
+    cloud = Client(StaticBackend({}))                      # returns no answers -> JevUnavailable
     local = StaticBackend({"addressed": {"type": "noul", "noul": 0.9}}, model="prompt:local")
     v = asyncio.run(Router(_reg(), cloud=cloud, local=Client(local)).decide("x", ["addressed"]))
     assert v["addressed"].model == "prompt:local"
     assert v["addressed"].band is Band.CONFIRM and v["addressed"].calibrated is False
 
 
-def test_router_ohne_passendes_backend():
+def test_router_without_matching_backend():
     with pytest.raises(JevUnavailable):
         asyncio.run(Router(_reg(),
                            cloud=Client(StaticBackend({"addressed": {"type": "noul",

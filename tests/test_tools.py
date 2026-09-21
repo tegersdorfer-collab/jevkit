@@ -32,7 +32,7 @@ def test_call_questions_form():
         call_questions([LAMP, LAMP])
 
 
-def test_resolve_call_min_confidence_und_optional():
+def test_resolve_call_min_confidence_and_optional():
     d = Decision({
         TOOL_QID: _c("timer", {"timer": 0.9, "lamp": 0.05, NONE_OPTION: 0.05}, 0.85),
         "lamp.power": _c("on", {"on": 0.6, "off": 0.4}, 0.2),
@@ -59,7 +59,7 @@ def test_resolve_call_none():
     assert resolve_call(d, [LAMP]) is None
 
 
-def test_resolve_call_unbekanntes_tool():
+def test_resolve_call_unknown_tool():
     d = Decision({TOOL_QID: _c("lamp", {"lamp": 0.9, NONE_OPTION: 0.1}, 0.85)}, "m", {}, False, 0.0)
     with pytest.raises(ValueError) as exc_info:
         resolve_call(d, [TIMER])
