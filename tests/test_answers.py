@@ -74,3 +74,30 @@ def test_to_dict_roundtrip():
     a = ChoiceAnswer("a", {"a": 1.0}, 1.0)
     assert parse_answer(a.to_dict()) == a
     assert parse_answer(NoulAnswer(0.2).to_dict()) == NoulAnswer(0.2)
+
+
+# Recorded on the wire against api.typesafe.ai on 2026-09-20 (AgentEvalHQ/AgentEval PR #257, evidence doc):
+# resolved model id is "jev-1.13.0", score legend/probabilities are 0-indexed string keys, a noul
+# answer carries no confidence field. This is the shape parse_answer is built for.
+WIRE_RESPONSE = {
+    "model": "jev-1.13.0",
+    "answers": {
+        "grounded": {"type": "noul", "noul": 0.01},
+        "risk": {"type": "choice", "choice": "high", "confidence": 1.0,
+                 "probabilities": {"low": 0.0, "medium": 0.0, "high": 1.0}},
+        "quality": {"type": "score", "score": 0.0, "confidence": 1.0,
+                    "legend": {"0": "wrong", "1": "partly right", "2": "right but incomplete",
+                               "3": "right and complete"},
+                    "probabilities": {"0": 1.0, "1": 0.0, "2": 0.0, "3": 0.0}},
+    },
+    "usage": {"input_tokens": 593, "output_tokens": 71},
+}
+
+
+def test_parse_real_wire_response():
+    answers = {qid: parse_answer(raw) for qid, raw in WIRE_RESPONSE["answers"].items()}
+    assert answers["grounded"] == NoulAnswer(0.01)
+    assert answers["risk"].choice == "high" and answers["risk"].confidence == 1.0
+    q = answers["quality"]
+    assert isinstance(q, ScoreAnswer) and q.level == 0 and q.normalized == 0.0 and q.p == 1.0
+    assert q.legend["3"] == "right and complete"

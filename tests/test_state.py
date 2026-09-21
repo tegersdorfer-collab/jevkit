@@ -8,6 +8,8 @@ from jevkit.questions import Noul
 from jevkit.state import (
     GUARD,
     GUARD_ID,
+    SELF_CLAIM,
+    SELF_CLAIM_ID,
     UNTRUSTED_KEY,
     bucket,
     count_bucket,
@@ -82,3 +84,15 @@ def test_guard_distinguishes_manipulation_from_normal_command():
     assert "MANIPULATE" in payload and "NOT manipulation" in payload
     assert "turn on the desk lamp" in payload            # example for false
     assert "ignore all previous instructions" in payload  # example for true
+
+
+def test_self_claim_guard_is_optional_and_counts_as_injected():
+    qs = with_guard({"a": Noul("?")})
+    assert SELF_CLAIM_ID not in qs
+    qs = with_guard({"a": Noul("?")}, self_claim=True)
+    assert qs[SELF_CLAIM_ID] is SELF_CLAIM and UNTRUSTED_KEY in str(SELF_CLAIM.payload())
+    with pytest.raises(ValueError):
+        with_guard({SELF_CLAIM_ID: Noul("x")})
+    d = Decision({"a": NoulAnswer(0.9), GUARD_ID: NoulAnswer(0.1), SELF_CLAIM_ID: NoulAnswer(0.8)},
+                 "m", {}, False, 0.0)
+    assert injected(d)

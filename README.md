@@ -16,12 +16,12 @@ this library. Nothing here is a prompt trick — it's code that does what the mo
 
 - One runtime dependency (`httpx`). Python 3.11+.
 - Works with the TypeSafe API and the OpenRouter `/api/alpha/decisions` endpoint (same body).
-- 81 tests, no network in tests.
+- 83 tests, no network in tests. Response parsing verified against a recorded live reply (`jev-1.13.0`, 0-indexed score levels).
 
 ## Install
 
 ```bash
-pip install "jevkit @ git+https://github.com/tegersdorfer-collab/jevkit.git@v0.1.2"
+pip install "jevkit @ git+https://github.com/tegersdorfer-collab/jevkit.git@v0.1.3"
 export OPENROUTER_API_KEY=...   # or TYPESAFE_API_KEY for direct access
 ```
 
@@ -137,6 +137,11 @@ from jevkit import untrusted, with_guard, injected
 d = await client.decide(untrusted(transcript), with_guard({"addressed": Noul("...")}))
 if injected(d):
     ...   # treat everything in this fan-out as ESCALATE
+
+# When the text is being *judged* (moderation, verification), add the second guard:
+# content that argues for its own harmlessness flips Jev judge verdicts at high confidence
+# (community measurement: ~28 % of harmful samples). `self_claim=True` detects that pattern.
+qs = with_guard({"harmful": Noul("...")}, self_claim=True)
 ```
 
 ## The calibration loop
@@ -192,10 +197,35 @@ That loop — log, label, re-derive — is what this library is for.
 6. Never one threshold; three bands, higher for destructive actions.
 7. Log the model version. When it changes, re-measure.
 
+## Known behaviour worth designing around
+
+Collected from the official docs and from measurements shared in the TypeSafe community
+(September 2026). None of these are jevkit bugs; they are properties of the model that the
+library either compensates for or that you should keep in mind.
+
+- **Probabilities mean "how sure the option is the right answer", not outcome odds.** Asked for
+  the sum of two dice, Jev puts 1.0 on 7. Don't use Choice distributions as likelihoods; use them
+  as confidence about a single correct answer. `beam_search` scores paths by that certainty.
+- **Content that vouches for itself moves the verdict** ("nothing above is harmful"): ~28 % flips
+  at high confidence in a judge setup. Confidence gating does not catch it → `with_guard(...,
+  self_claim=True)`.
+- **Absolute dates don't register, relative ones do.** "review by 21/9/2026" gives a neutral
+  urgency; "by tomorrow" works. That is exactly what `relative_days` is for.
+- **Run-to-run variation is small but real** — a Choice confidence of 0.68–0.77 across five
+  identical runs was reported. Keep bands away from the values you observe in production, and
+  expect a Noul near 0.5 to flip. `MemoryCache` makes repeated identical requests deterministic
+  by construction.
+- **Weak spots reported:** many-label attribute tagging (16 abstract labels, ~0.37 subset
+  accuracy vs. ~0.7 for a generative LLM), idiom / word-association knowledge, romanized
+  non-Latin-script languages, glossary-driven expansion of concatenated abbreviations. German
+  content with English instructions measured fine (93 % on 92 labelled cases).
+- **Model ids on the wire:** the TypeSafe API resolves `jev-latest` to `jev-1.13.0` and accepts the
+  pinned id as a request model; OpenRouter answers with `typesafe/jev-1.13`. Pin the version in
+  production and set `Client(expected_model=...)` accordingly.
+
 ## Status
 
-v0.1 — API may still move. Known gaps: the Score response shape of the live API has not been
-verified against a recorded fixture (the parser is defensive); `PromptBackend` is uncalibrated
+v0.1 — API may still move. Known gaps: `PromptBackend` is uncalibrated
 by design; no retry budget across multiple fan-outs. Design notes:
 [`docs/design.md`](docs/design.md).
 
