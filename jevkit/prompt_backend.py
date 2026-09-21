@@ -2,8 +2,12 @@
 Jev-Emulation über ein Text-LLM (z.B. Ollama) — für lokale/private Entscheidungen und
 als Fallback. UNKALIBRIERT: Choice/Score liefern One-Hot-Verteilungen mit Confidence 1,
 Noul eine vom LLM geschätzte Prozentzahl. Deshalb meldet sich das Backend als
-"prompt:<name>", und der Router demotet Bänder, deren `calibrated_model` nicht passt.
-Eine Frage pro Prompt (Text-LLMs beantworten Fan-outs nicht isoliert).
+"prompt:<name>", und der Router demotet Bänder: entweder weil `calibrated_model` nicht
+passt, oder — wenn dieses Backend ein CLOUD-Spec als Fallback beantwortet — automatisch,
+unabhängig von `calibrated_model` (siehe `registry.Router._verdicts`).
+Eine Frage pro Prompt (Text-LLMs beantworten Fan-outs nicht isoliert). Anfragen laufen
+über ein `asyncio.Semaphore(concurrency)`, um ein lokales LLM nicht mit Fan-outs zu
+überlasten.
 """
 from __future__ import annotations
 
@@ -16,6 +20,7 @@ from typing import Any
 from jevkit.backends import BackendError, RawResponse
 
 _INT = re.compile(r"-?\d+")
+_NUM = re.compile(r"\b(\d+(?:\.\d+)?)\s*%?")
 
 
 def _fmt(x: Any) -> str:
@@ -65,18 +70,23 @@ def parse_reply(question: dict, reply: str) -> dict:
     kind = question["type"]
     text = reply.strip()
     if kind == "noul":
-        m = _INT.search(text)
+        m = _NUM.search(text)
         if not m:
             raise BackendError(
                 f"Noul-Antwort ohne Zahl: {text[:80]!r}", retryable=False
             )
-        return {"type": "noul", "noul": min(max(int(m.group()), 0), 100) / 100}
+        num = m.group(1)
+        value = float(num)
+        # Enthält der Treffer einen Punkt, ist es ein Anteil (0.7 → 0,7);
+        # sonst eine Prozentzahl (85 → 0,85, 7% → 0,07, 1 → 0,01).
+        frac = value if "." in num else value / 100
+        return {"type": "noul", "noul": min(max(frac, 0.0), 1.0)}
     if kind == "choice":
         options = list(question["criteria"])
         low = text.lower()
         hit = next((o for o in options if o.lower() == low), None) or (
             next((o for o in sorted(options, key=len, reverse=True)
-                  if o.lower() in low), None)
+                  if re.search(rf"\b{re.escape(o.lower())}\b", low)), None)
         )
         if hit is None:
             raise BackendError(
@@ -110,14 +120,17 @@ def parse_reply(question: dict, reply: str) -> dict:
 
 
 class PromptBackend:
-    def __init__(self, ask: Callable[[str], Awaitable[str]], *, name: str = "local") -> None:
+    def __init__(self, ask: Callable[[str], Awaitable[str]], *, name: str = "local",
+                 concurrency: int = 4) -> None:
         self._ask = ask
         self.model = f"prompt:{name}"
+        self._sem = asyncio.Semaphore(concurrency)
 
     async def ask(self, state: Any, questions: dict[str, dict], *, model: str | None = None,
                   timeout_s: float = 30.0) -> RawResponse:
         async def one(qid: str, q: dict) -> tuple[str, dict]:
-            reply = await self._ask(build_prompt(state, qid, q))
+            async with self._sem:
+                reply = await self._ask(build_prompt(state, qid, q))
             return qid, parse_reply(q, reply)
 
         pairs = await asyncio.gather(*(one(qid, q) for qid, q in questions.items()))

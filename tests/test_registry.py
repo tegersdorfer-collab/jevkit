@@ -58,7 +58,8 @@ def test_router_faellt_von_cloud_auf_local():
     cloud = Client(StaticBackend({}))                      # liefert keine Antworten → JevUnavailable
     local = StaticBackend({"addressed": {"type": "noul", "noul": 0.9}}, model="prompt:local")
     v = asyncio.run(Router(_reg(), cloud=cloud, local=Client(local)).decide("x", ["addressed"]))
-    assert v["addressed"].model == "prompt:local" and v["addressed"].band is Band.ACT
+    assert v["addressed"].model == "prompt:local"
+    assert v["addressed"].band is Band.CONFIRM and v["addressed"].calibrated is False
 
 
 def test_router_ohne_passendes_backend():

@@ -26,6 +26,14 @@ def test_score_answer_normalisierung():
     assert one_based.normalized == 1.0
 
 
+def test_score_answer_nicht_numerische_keys_positional():
+    # Keys nicht int()-fähig → positionale Indizes 0..n-1 in Key-Reihenfolge.
+    a = ScoreAnswer(1.0, {}, {"low": 0.2, "high": 0.8}, 0.6)
+    assert a.level == 1
+    assert a.normalized == 1.0
+    assert abs(a.p - 0.8) < 1e-9
+
+
 def test_parse_answer_alle_typen():
     assert parse_answer({"type": "noul", "noul": 0.6}) == NoulAnswer(0.6)
     c = parse_answer({
@@ -35,6 +43,18 @@ def test_parse_answer_alle_typen():
     s = parse_answer({"type": "score", "score": 1.5, "legend": {"0": "x", "1": "y", "2": "z"},
                       "probabilities": {"0": 0.0, "1": 0.5, "2": 0.5}, "confidence": 0.25})
     assert isinstance(s, ScoreAnswer) and s.score == 1.5
+
+
+def test_parse_answer_score_legend_liste_oder_fehlend():
+    s = parse_answer({"type": "score", "score": 1.0, "legend": ["none", "low", "high"],
+                      "probabilities": {"0": 0.0, "1": 1.0, "2": 0.0}, "confidence": 0.5})
+    assert s.legend == {"0": "none", "1": "low", "2": "high"}
+    s2 = parse_answer({"type": "score", "score": 1.0,
+                       "probabilities": {"0": 0.0, "1": 1.0}, "confidence": 0.5})
+    assert s2.legend == {}
+    s3 = parse_answer({"type": "score", "score": 1.0, "legend": "kaputt",
+                       "probabilities": {"0": 0.0, "1": 1.0}, "confidence": 0.5})
+    assert s3.legend == {}
 
 
 @pytest.mark.parametrize("raw", [

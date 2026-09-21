@@ -68,3 +68,20 @@ def test_beam_fragen_zeigen_teilbaum_und_beschreibung():
 def test_beam_leerer_baum():
     with pytest.raises(ValueError):
         asyncio.run(beam_search(Client(StaticBackend({})), "x", {}))
+
+
+def test_beam_frage_enthaelt_elternpfad():
+    seen = []
+
+    def h(state, questions):
+        seen.append(questions)
+        return _handler(state, questions)
+
+    asyncio.run(beam_search(Client(StaticBackend(h)), "I love playing Zelda", TREE, k=3))
+    root_q = seen[0][next(iter(seen[0]))]
+    assert root_q["instructions"]["parent_path"] == []
+    level2 = next(
+        q for qs in seen for q in qs.values()
+        if q["instructions"].get("parent_path") == ["software"]
+    )
+    assert level2["instructions"]["parent_path"] == ["software"]

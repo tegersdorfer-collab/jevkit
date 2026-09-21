@@ -68,7 +68,9 @@ async def beam_search(client: Client, state: Any, tree: Tree, *, k: int = 3,
 
         async def ask(p: Path) -> list[Path]:
             children = _subtree(tree, p.nodes)
-            d = await client.decide(state, {qid: Choice(instructions, _criteria(children, max_listed))})
+            q = Choice({"question": instructions, "parent_path": list(p.nodes)},
+                      _criteria(children, max_listed))
+            d = await client.decide(state, {qid: q})
             ans = d[qid]
             assert isinstance(ans, ChoiceAnswer)
             return [Path((*p.nodes, name), (*p.probs, prob)) for name, prob in ans.probabilities.items()]

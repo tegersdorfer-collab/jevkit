@@ -6,12 +6,12 @@ Fragen rein, kalibrierte Wahrscheinlichkeiten raus — und der Code behält die 
 Jev generiert keinen Text. Es beantwortet **Noul** (ja/nein → P), **Choice** (Option +
 Verteilung + Confidence) und **Score** (Level + Verteilung + Confidence) parallel gegen
 einen State. jevkit baut darum herum, was Jev laut eigener Doku nicht kann: zählen,
-rechnen, Daten vergleichen, Fremdtext misstrauen, Antworten begründen.
+rechnen, Daten vergleichen, Fremdtext misstrauen.
 
 ## Installation
 
 ```bash
-pip install -e /Users/timoegersdorfer/jevkit
+pip install -e <pfad-zum-jevkit-checkout>
 export OPENROUTER_API_KEY=...      # oder TYPESAFE_API_KEY für den Direktzugang
 ```
 

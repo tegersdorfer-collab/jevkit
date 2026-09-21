@@ -40,6 +40,25 @@ def test_parse_reply_noul():
         parse_reply(NOUL, "keine Ahnung")
 
 
+def test_parse_reply_noul_dezimal_als_anteil():
+    # Enthält der Zahlentreffer einen Punkt, ist es ein Anteil, sonst eine Prozentzahl.
+    assert parse_reply(NOUL, "0.7") == {"type": "noul", "noul": 0.7}
+    assert parse_reply(NOUL, "1") == {"type": "noul", "noul": 0.01}
+    assert parse_reply(NOUL, "85") == {"type": "noul", "noul": 0.85}
+    assert parse_reply(NOUL, "7%") == {"type": "noul", "noul": 0.07}
+
+
+def test_parse_reply_choice_wortgrenzen():
+    on_off = {
+        "type": "choice",
+        "instructions": "An oder aus?",
+        "criteria": {"on": "an", "off": "aus"}
+    }
+    with pytest.raises(BackendError):
+        parse_reply(on_off, "confirmation")
+    assert parse_reply(on_off, "turn it on")["choice"] == "on"
+
+
 def test_parse_reply_choice_und_score():
     result = parse_reply(CHOICE, "  Bug  ")
     assert result == {
@@ -81,3 +100,21 @@ def test_backend_fragt_pro_frage_und_liefert_raw_response():
         }
     }
     assert len(prompts) == 2
+
+
+def test_backend_begrenzt_parallelitaet():
+    current = 0
+    peak = 0
+
+    async def ask(prompt):
+        nonlocal current, peak
+        current += 1
+        peak = max(peak, current)
+        await asyncio.sleep(0.01)
+        current -= 1
+        return "90"
+
+    b = PromptBackend(ask, name="qwen", concurrency=1)
+    questions = {f"q{i}": NOUL for i in range(5)}
+    asyncio.run(b.ask({"msg": "x"}, questions, model=None, timeout_s=1))
+    assert peak == 1

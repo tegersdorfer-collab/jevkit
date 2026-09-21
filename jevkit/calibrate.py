@@ -1,7 +1,9 @@
 """
 Kalibrierung aus gelabelten Outcomes. Bänder werden gemessen, nicht geraten:
 `suggest_bands` sucht die kleinste Confidence, ab der die Präzision ein Ziel erreicht
-(ACT: 95 %, CONFIRM: 75 % als Default). Zu wenig Daten → konservativ (alles CONFIRM/ESCALATE).
+(ACT: 95 %, CONFIRM: 75 % als Default). Zu wenig Daten → konservativ: `Bands(1.0, 1.0)`,
+d.h. nur Confidence genau 1,0 wird ACT, alles darunter ESCALATE (CONFIRM ist dann
+unerreichbar — das ist Absicht, solange nichts gemessen wurde).
 Nach einem Modellwechsel (Decision.model) neu laufen lassen.
 """
 from __future__ import annotations

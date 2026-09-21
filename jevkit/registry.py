@@ -2,7 +2,10 @@
 Alle Entscheidungen einer Anwendung an EINER Stelle: Frage, Schwere, Datenschutz,
 Bänder, kalibrierte Modellversion. Der Router wählt das Backend nach `privacy`
 (LOCAL darf nie in die Cloud), fällt bei Cloud-Ausfall auf lokal zurück und demotet
-das Band, wenn das antwortende Modell nicht das ist, für das die Bänder kalibriert wurden.
+das Band, wenn das antwortende Modell nicht das ist, für das die Bänder kalibriert
+wurden. Ein CLOUD-Spec, das über das lokale Fallback-Backend beantwortet wird, gilt
+dabei IMMER als unkalibriert (`Verdict.calibrated=False`) — unabhängig davon, ob
+`calibrated_model` gesetzt ist, weil das lokale Modell nie das kalibrierte ist.
 """
 from __future__ import annotations
 
@@ -74,13 +77,16 @@ class Router:
         self.cloud = cloud
         self.local = local
 
-    def _verdicts(self, decision: Decision, ids: Sequence[str]) -> dict[str, Verdict]:
+    def _verdicts(self, decision: Decision, ids: Sequence[str], *,
+                  fallback: bool) -> dict[str, Verdict]:
         out: dict[str, Verdict] = {}
         for i in ids:
             spec = self.registry.get(i)
             ans = decision[i]
-            calibrated = (spec.calibrated_model is None or
-                         decision.model.startswith(spec.calibrated_model))
+            # Ein Fallback-Backend beantwortet nie das kalibrierte Modell, egal
+            # was `calibrated_model` sagt: die Bänder passen dann grundsätzlich nicht.
+            calibrated = not fallback and (spec.calibrated_model is None or
+                                           decision.model.startswith(spec.calibrated_model))
             b = band(ans, spec.effective_bands)
             if not calibrated:
                 b = demote(b)
@@ -92,16 +98,19 @@ class Router:
         if privacy is Privacy.LOCAL:
             if self.local is None:
                 raise JevUnavailable("kein lokales Backend für LOCAL-Entscheidungen")
-            return self._verdicts(await self.local.decide(state, qs), ids)
+            return self._verdicts(await self.local.decide(state, qs), ids, fallback=False)
         if self.cloud is not None:
             try:
-                return self._verdicts(await self.cloud.decide(state, qs), ids)
+                return self._verdicts(await self.cloud.decide(state, qs), ids, fallback=False)
             except JevUnavailable:
                 if self.local is None:
                     raise
         if self.local is None:
             raise JevUnavailable("kein Backend verfügbar")
-        return self._verdicts(await self.local.decide(state, qs), ids)
+        # CLOUD-Spec, aber über das lokale Backend beantwortet (Fallback nach
+        # JevUnavailable oder weil gar kein Cloud-Client konfiguriert ist) →
+        # nie kalibriert, Band wird demotet.
+        return self._verdicts(await self.local.decide(state, qs), ids, fallback=True)
 
     async def decide(self, state, ids: Sequence[str]) -> dict[str, Verdict]:
         specs = [self.registry.get(i) for i in ids]   # KeyError für unbekannte IDs, vor jedem Call

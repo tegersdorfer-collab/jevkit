@@ -4,6 +4,11 @@ falsch, z.B. weil der Nutzer korrigiert hat) werden als eigene Zeilen nachgetrag
 beim Lesen per (qid, state_hash) gemergt — der letzte Eintrag gewinnt. Daraus baut
 `calibrate` Brier/ECE und Band-Vorschläge. Der State selbst wird NICHT geloggt (Privacy),
 nur sein Hash.
+
+Achtung: `answer.to_dict()` loggt bei Choice/Score die vollen Optionsnamen (`choice`,
+`legend`) mit — bei `compose.extract` sind das wörtliche Inhaltskandidaten aus dem State,
+keine anonymen Labels. Wer das nicht loggen will, protokolliert nur Nouls oder redigiert
+die Antwort vor dem `write`.
 """
 from __future__ import annotations
 
@@ -69,7 +74,7 @@ class DecisionLog:
     def records(self) -> list[Record]:
         if not self.path.exists():
             return []
-        decisions: list[dict] = []
+        decisions: list[tuple[int, dict]] = []
         outcomes: dict[tuple[str, str], bool] = {}
         for lineno, line in enumerate(
             self.path.read_text(encoding="utf-8").splitlines(), start=1
@@ -84,12 +89,16 @@ class DecisionLog:
             if row.get("kind") == "outcome":
                 outcomes[(row["qid"], row["state_hash"])] = bool(row["correct"])
             else:
-                decisions.append(row)
-        return [
-            Record(
-                r["ts"], r["qid"], r["state_hash"], parse_answer(r["answer"]),
-                Band(r["band"]), r["model"], r["latency_s"],
-                outcomes.get((r["qid"], r["state_hash"]))
-            )
-            for r in decisions
-        ]
+                decisions.append((lineno, row))
+        out: list[Record] = []
+        for lineno, r in decisions:
+            try:
+                out.append(Record(
+                    r["ts"], r["qid"], r["state_hash"], parse_answer(r["answer"]),
+                    Band(r["band"]), r["model"], r["latency_s"],
+                    outcomes.get((r["qid"], r["state_hash"]))
+                ))
+            except (ValueError, KeyError, TypeError):
+                log.warning("Log-Zeile %d übersprungen (kaputte Decision): %r",
+                           lineno, str(r)[:80])
+        return out

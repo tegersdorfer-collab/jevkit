@@ -1,3 +1,5 @@
+import json
+
 from jevkit.answers import ChoiceAnswer, NoulAnswer
 from jevkit.client import Decision
 from jevkit.gate import Band
@@ -55,5 +57,25 @@ def test_kaputte_zeile_wird_uebersprungen(tmp_path, caplog):
         "übersprungen" in record.message
         and record.name == "jevkit.log"
         and record.levelname == "WARNING"
+        for record in caplog.records
+    )
+
+
+def test_kaputte_decision_zeile_wird_uebersprungen(tmp_path, caplog):
+    lg = DecisionLog(tmp_path / "d.jsonl")
+    d = Decision({"a": NoulAnswer(0.9), "b": NoulAnswer(0.8)}, "jev-1.0", {}, False, 0.1)
+    lg.write(d, {"a": Band.ACT, "b": Band.ACT}, {"x": 1})
+    # Valides JSON, aber kein gültiges Band -> darf records() nicht crashen.
+    with (tmp_path / "d.jsonl").open("a", encoding="utf-8") as f:
+        f.write(json.dumps({
+            "kind": "decision", "ts": 1.0, "qid": "c", "state_hash": "h",
+            "answer": {"type": "noul", "noul": 0.5}, "band": "unsinn",
+            "model": "jev-1.0", "latency_s": 0.1
+        }) + "\n")
+    recs = lg.records()
+    assert [r.qid for r in recs] == ["a", "b"]
+    assert any(
+        "übersprungen" in record.message and "kaputte Decision" in record.message
+        and record.name == "jevkit.log" and record.levelname == "WARNING"
         for record in caplog.records
     )
