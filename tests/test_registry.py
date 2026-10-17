@@ -5,6 +5,7 @@ import pytest
 from jevkit.backends import StaticBackend
 from jevkit.client import Client, JevUnavailable
 from jevkit.gate import Band, Bands, Severity
+from jevkit.models import JEV_1_14
 from jevkit.questions import Noul
 from jevkit.registry import DecisionSpec, Privacy, Registry, Router, Verdict
 
@@ -52,6 +53,28 @@ def test_router_uncalibrated_model_is_demoted():
     cloud = StaticBackend({"delete_ok": {"type": "noul", "noul": 0.99}}, model="typesafe/jev-2.0")
     v = asyncio.run(Router(_reg(), cloud=Client(cloud)).decide("x", ["delete_ok"]))
     assert v["delete_ok"].calibrated is False and v["delete_ok"].band is Band.CONFIRM
+
+
+@pytest.mark.parametrize("calibrated_model", [
+    JEV_1_14,
+    "1.14",
+    "jev-1.14.0",
+    "typesafe/jev-1.14-20261014",
+])
+def test_router_calibration_matches_provider_independent_version(calibrated_model):
+    registry = Registry()
+    registry.register(DecisionSpec("q", Noul("?"), calibrated_model=calibrated_model))
+    backend = StaticBackend({"q": {"type": "noul", "noul": 0.99}}, model="typesafe/jev-1.14-20261014")
+    verdict = asyncio.run(Router(registry, cloud=Client(backend)).decide("x", ["q"]))["q"]
+    assert verdict.calibrated is True and verdict.band is Band.ACT
+
+
+def test_router_keeps_prefix_fallback_for_unparseable_calibration_ids():
+    registry = Registry()
+    registry.register(DecisionSpec("q", Noul("?"), calibrated_model="prompt:local"))
+    backend = StaticBackend({"q": {"type": "noul", "noul": 0.99}}, model="prompt:local-v2")
+    verdict = asyncio.run(Router(registry, cloud=Client(backend)).decide("x", ["q"]))["q"]
+    assert verdict.calibrated is True and verdict.band is Band.ACT
 
 
 def test_router_falls_back_from_cloud_to_local():

@@ -16,6 +16,7 @@ from enum import Enum
 from jevkit.answers import Answer
 from jevkit.client import Client, Decision, JevUnavailable
 from jevkit.gate import DEFAULT_BANDS, Band, Bands, Severity, band, demote
+from jevkit.models import JevModel, model_version
 from jevkit.questions import Question
 
 
@@ -31,7 +32,7 @@ class DecisionSpec:
     severity: Severity = Severity.READ
     privacy: Privacy = Privacy.CLOUD
     bands: Bands | None = None
-    calibrated_model: str | None = None   # prefix, e.g. "typesafe/jev-1.13"
+    calibrated_model: str | JevModel | None = None
 
     @property
     def effective_bands(self) -> Bands:
@@ -85,8 +86,18 @@ class Router:
             ans = decision[i]
             # A fallback backend never answers as the calibrated model, no matter
             # what `calibrated_model` says: the bands then fundamentally don't fit.
-            calibrated = not fallback and (spec.calibrated_model is None or
-                                           decision.model.startswith(spec.calibrated_model))
+            calibration = spec.calibrated_model
+            if calibration is None:
+                model_matches = True
+            else:
+                calibration_id = calibration.version if isinstance(calibration, JevModel) else calibration
+                calibration_version = model_version(calibration_id)
+                model_matches = (
+                    model_version(decision.model) == calibration_version
+                    if calibration_version is not None
+                    else decision.model.startswith(calibration_id)
+                )
+            calibrated = not fallback and model_matches
             b = band(ans, spec.effective_bands)
             if not calibrated:
                 b = demote(b)

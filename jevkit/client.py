@@ -18,6 +18,7 @@ from typing import Any
 from jevkit.answers import Answer, parse_answer
 from jevkit.backends import Backend, BackendError, RawResponse
 from jevkit.cache import MemoryCache, cache_key
+from jevkit.models import JevModel, model_version
 from jevkit.questions import Question
 
 log = logging.getLogger(__name__)
@@ -45,7 +46,7 @@ class Decision:
 class Client:
     def __init__(self, backend: Backend, *, model: str | None = None, timeout_s: float = 3.0,
                  cooldown_s: float = 120.0, cache: MemoryCache | None = None,
-                 expected_model: str | None = None,
+                 expected_model: str | JevModel | None = None,
                  clock: Callable[[], float] = time.monotonic) -> None:
         self.backend = backend
         self.model = model
@@ -93,11 +94,23 @@ class Client:
             log.warning("Jev unavailable, %.0fs cooldown: %r", self.cooldown_s, e)
             raise JevUnavailable(str(e)) from e
         latency = time.perf_counter() - t0
-        if self.expected_model and not raw.model.startswith(self.expected_model):
+        expected = self.expected_model
+        requested_model = self.model or getattr(self.backend, "default_model", None)
+        if isinstance(expected, JevModel):
+            expected = expected.version
+        expected_version = model_version(expected) if isinstance(expected, str) else None
+        if self.expected_model is None and isinstance(requested_model, str):
+            expected_version = model_version(requested_model)
+        expected_label = self.expected_model if self.expected_model is not None else requested_model
+        if expected_version is not None:
+            mismatch = model_version(raw.model) != expected_version
+        else:   # explicit id without a parsable version (e.g. "prompt:local"): keep the 0.1.x prefix check
+            mismatch = isinstance(expected, str) and bool(expected) and not raw.model.startswith(expected)
+        if mismatch:
             log.warning(
                 "Jev model %r instead of expected %r - recalibrate bands",
                 raw.model,
-                self.expected_model,
+                expected_label,
             )
         if self.cache is not None:
             self.cache.put(key, raw)

@@ -10,20 +10,41 @@ around it that keeps *your code* in control: it prepares the state, composes the
 turns every answer into an **act / confirm / escalate** band, and re-calibrates those bands
 from real outcomes.
 
-Every documented weakness of `jev-1.13` (the official
-[jaggedness page](https://docs.typesafe.ai/model-jaggedness/jev-1.13)) has a countermeasure in
+Jev's documented weaknesses (the official
+[jaggedness page](https://docs.typesafe.ai/model-jaggedness/jev-1.14)) have countermeasures in
 this library. Nothing here is a prompt trick — it's code that does what the model can't.
 
 - One runtime dependency (`httpx`). Python 3.11+.
 - Works with the TypeSafe API and the OpenRouter `/api/alpha/decisions` endpoint (same body).
-- 83 tests, no network in tests. Response parsing verified against a recorded live reply (`jev-1.13.0`, 0-indexed score levels).
+- Offline test suite needs no network; provider-specific live cases are skipped unless enabled.
+- Response parsing uses recorded wire replies for Jev 1.13 and 1.14.
 
 ## Install
 
 ```bash
-pip install "jevkit @ git+https://github.com/tegersdorfer-collab/jevkit.git@v0.1.3"
+pip install "jevkit @ git+https://github.com/tegersdorfer-collab/jevkit.git@v0.2.0"
 export OPENROUTER_API_KEY=...   # or TYPESAFE_API_KEY for direct access
 ```
+
+## Jev versions
+
+Each jevkit release pins one Jev major.minor version. jevkit 0.2.0 sends explicit Jev 1.14
+model ids by default, so a provider's changing `latest` alias cannot silently change the model
+or its calibration. TypeSafe uses `jev-1.14.0`; OpenRouter uses
+`typesafe/jev-1.14-20261014`.
+
+To stay on Jev 1.13, select its provider-specific ids with `jev=JEV_1_13`:
+
+```python
+from jevkit import JEV_1_13, OpenRouterBackend
+
+backend = OpenRouterBackend(jev=JEV_1_13)
+```
+
+An explicit `model=` still accepts provider ids and aliases such as `jev-latest`. Check whether
+a provider has moved its alias with `jevkit-check-latest`; the command uses the configured API
+keys and points to [`docs/upgrading-jev.md`](docs/upgrading-jev.md) when a provider serves a version
+newer than the pin or one it cannot parse.
 
 ## 60-second tour
 
@@ -219,14 +240,16 @@ library either compensates for or that you should keep in mind.
   accuracy vs. ~0.7 for a generative LLM), idiom / word-association knowledge, romanized
   non-Latin-script languages, glossary-driven expansion of concatenated abbreviations. German
   content with English instructions measured fine (93 % on 92 labelled cases).
-- **Model ids on the wire:** the TypeSafe API resolves `jev-latest` to `jev-1.13.0` and accepts the
-  pinned id as a request model; OpenRouter answers with `typesafe/jev-1.13`. Pin the version in
-  production and set `Client(expected_model=...)` accordingly.
+- **Model ids on the wire:** TypeSafe accepts `jev-1.14.0` and returns it unchanged; OpenRouter
+  accepts and returns `typesafe/jev-1.14-20261014`. Provider `latest` aliases differ, so jevkit
+  sends the explicit id for its pinned version. `Client` derives its expected version from that
+  request by default; `expected_model=` can override it.
 
 ## Status
 
-v0.1 — API may still move. Known gaps: `PromptBackend` is uncalibrated
-by design; no retry budget across multiple fan-outs. Design notes:
+v0.2 — Jev 1.14 is pinned per jevkit release; adopting another model requires a jevkit minor
+release. Known gaps: `PromptBackend` is uncalibrated by design; no retry budget across multiple
+fan-outs. Design notes:
 [`docs/design.md`](docs/design.md).
 
 MIT.

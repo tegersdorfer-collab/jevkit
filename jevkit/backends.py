@@ -2,8 +2,10 @@
 Transport to Jev. Both official endpoints take the same body
 {model, state, questions} and return {model, answers, usage}:
 
-  TypeSafe direct:  POST https://api.typesafe.ai/v1/systemone      model "jev-latest"
-  OpenRouter:       POST https://openrouter.ai/api/alpha/decisions model "~typesafe/jev-latest"
+  TypeSafe direct:  POST https://api.typesafe.ai/v1/systemone      pinned model "jev-1.14.0"
+  OpenRouter:       POST https://openrouter.ai/api/alpha/decisions pinned model "typesafe/jev-1.14-20261014"
+
+Latest aliases remain available through an explicit model override.
 
 Retry belongs here (the backend knows the status codes); the overall time budget and
 the circuit breaker belong in the client. Per the docs, 429/529 should be retried with
@@ -19,6 +21,8 @@ from dataclasses import dataclass, field
 from typing import Any, Protocol
 
 import httpx
+
+from jevkit.models import PINNED, JevModel
 
 RETRY_STATUS = frozenset({408, 425, 429, 500, 502, 503, 504, 520, 522, 524, 529})
 
@@ -50,19 +54,26 @@ class HTTPBackend:
     """Generic HTTP transport; TypeSafeBackend/OpenRouterBackend only set URL, model, env var."""
 
     url: str = TYPESAFE_URL
-    default_model: str = "jev-latest"
+    default_model: str = PINNED.typesafe_id
     env_var: str = "TYPESAFE_API_KEY"
+    model_id_attr: str = "typesafe_id"
 
     def __init__(self, api_key: str | None = None, *, url: str | None = None, model: str | None = None,
-                 transport: httpx.AsyncBaseTransport | None = None, retries: int = 2,
-                 backoff_s: float = 0.5) -> None:
+                 jev: JevModel | None = None, transport: httpx.AsyncBaseTransport | None = None,
+                 retries: int = 2, backoff_s: float = 0.5) -> None:
+        if model is not None and jev is not None:
+            raise ValueError("pass either model or jev, not both")
+        if jev is not None:
+            if not isinstance(jev, JevModel):
+                raise TypeError("jev must be a JevModel")
+            model = getattr(jev, self.model_id_attr)
         key = api_key or os.environ.get(self.env_var, "")
         if not key:
             raise BackendError(f"no API key: pass api_key or set ${self.env_var}", retryable=False)
         self.api_key = key
         if url:
             self.url = url
-        if model:
+        if model is not None:
             self.default_model = model
         self.transport = transport
         self.retries = max(0, retries)
@@ -103,14 +114,20 @@ class HTTPBackend:
 
 class TypeSafeBackend(HTTPBackend):
     url = TYPESAFE_URL
-    default_model = "jev-latest"
+    default_model = PINNED.typesafe_id
     env_var = "TYPESAFE_API_KEY"
+    model_id_attr = "typesafe_id"
+    provider_name = "TypeSafe"
+    latest_model = "jev-latest"
 
 
 class OpenRouterBackend(HTTPBackend):
     url = OPENROUTER_URL
-    default_model = "~typesafe/jev-latest"
+    default_model = PINNED.openrouter_id
     env_var = "OPENROUTER_API_KEY"
+    model_id_attr = "openrouter_id"
+    provider_name = "OpenRouter"
+    latest_model = "~typesafe/jev-latest"
 
 
 Handler = Callable[[Any, dict[str, dict]], dict[str, Any]]

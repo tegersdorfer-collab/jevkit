@@ -4,9 +4,10 @@ import json
 import httpx
 import pytest
 
-from jevkit.backends import OpenRouterBackend, StaticBackend
+from jevkit.backends import OpenRouterBackend, StaticBackend, TypeSafeBackend
 from jevkit.cache import MemoryCache
 from jevkit.client import Client, Decision, JevUnavailable
+from jevkit.models import JEV_1_14
 from jevkit.questions import Choice, Noul, Score
 
 
@@ -135,6 +136,41 @@ def test_expected_model_warns_on_different_version(caplog):
     assert d.model == "typesafe/jev-2.0" and "jev-2.0" in caplog.text and "jev-1.13" in caplog.text
 
 
+def test_expected_model_matches_version_across_provider_ids(caplog):
+    b = StaticBackend({"q": _noul(0.7)}, model="typesafe/jev-1.14-20261014")
+    with caplog.at_level("WARNING", logger="jevkit.client"):
+        d = asyncio.run(Client(b, expected_model="jev-1.14.0").decide("x", {"q": Noul("?")}))
+    assert d.model == "typesafe/jev-1.14-20261014"
+    assert "recalibrate bands" not in caplog.text
+
+
+def test_jev_model_expected_version_warns_on_unparseable_response(caplog):
+    b = StaticBackend({"q": _noul(0.7)}, model="clef-flash")
+    with caplog.at_level("WARNING", logger="jevkit.client"):
+        asyncio.run(Client(b, expected_model=JEV_1_14).decide("x", {"q": Noul("?")}))
+    assert "clef-flash" in caplog.text and "recalibrate bands" in caplog.text
+
+
+def test_requested_alias_disables_derived_expected_version(caplog):
+    def handler(request):
+        return httpx.Response(200, json={"model": "jev-1.13.0", "answers": {"q": _noul(0.7)}, "usage": {}})
+
+    backend = OpenRouterBackend("key", transport=httpx.MockTransport(handler), retries=0)
+    with caplog.at_level("WARNING", logger="jevkit.client"):
+        asyncio.run(Client(backend, model="~typesafe/jev-latest").decide("x", {"q": Noul("?")}))
+    assert "recalibrate bands" not in caplog.text
+
+
+def test_backend_default_model_derives_expected_version(caplog):
+    def handler(request):
+        return httpx.Response(200, json={"model": "jev-1.13.0", "answers": {"q": _noul(0.7)}, "usage": {}})
+
+    backend = TypeSafeBackend("key", transport=httpx.MockTransport(handler), retries=0)
+    with caplog.at_level("WARNING", logger="jevkit.client"):
+        asyncio.run(Client(backend).decide("x", {"q": Noul("?")}))
+    assert "jev-1.13.0" in caplog.text and "recalibrate bands" in caplog.text
+
+
 def test_model_is_passed_through_to_backend():
     seen = {}
     def h(request):
@@ -143,3 +179,11 @@ def test_model_is_passed_through_to_backend():
     b = OpenRouterBackend("k", transport=httpx.MockTransport(h), retries=0)
     asyncio.run(Client(b, model="~typesafe/jev-1.13").decide("x", {"q": Noul("?")}))
     assert seen["model"] == "~typesafe/jev-1.13"
+
+
+def test_unversioned_expected_model_keeps_prefix_check(caplog):
+    for served, warns in (("prompt:local-7b", False), ("prompt:other", True)):
+        caplog.clear()
+        b = StaticBackend({"q": {"type": "noul", "noul": 0.9}}, model=served)
+        asyncio.run(Client(b, expected_model="prompt:local").decide("x", {"q": Noul("?")}))
+        assert ("recalibrate" in caplog.text) is warns

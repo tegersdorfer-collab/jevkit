@@ -1,0 +1,74 @@
+{
+  "request": {
+    "model": "typesafe/jev-1.14-20261014",
+    "state": {
+      "message": "Turn on the desk lamp right now please"
+    },
+    "questions": {
+      "action": {
+        "type": "noul",
+        "instructions": "Does the message ask the assistant to perform an action?"
+      },
+      "device": {
+        "type": "choice",
+        "instructions": "Which device is meant?",
+        "criteria": {
+          "lamp": "desk lamp",
+          "fan": "fan",
+          "__none__": "none of these"
+        }
+      },
+      "urgency": {
+        "type": "score",
+        "instructions": "How urgent is the request?",
+        "criteria": [
+          "not urgent",
+          "somewhat urgent",
+          "very urgent"
+        ]
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "typesafe/jev-1.14-20261014",
+    "answers": {
+      "action": {
+        "type": "noul",
+        "noul": 0.99
+      },
+      "device": {
+        "type": "choice",
+        "choice": "lamp",
+        "probabilities": {
+          "lamp": 1,
+          "fan": 0,
+          "__none__": 0
+        },
+        "confidence": 1
+      },
+      "urgency": {
+        "type": "score",
+        "score": 1.52,
+        "legend": {
+          "0": "not urgent",
+          "1": "somewhat urgent",
+          "2": "very urgent"
+        },
+        "probabilities": {
+          "0": 0,
+          "1": 0.47,
+          "2": 0.53
+        },
+        "confidence": 0.3
+      }
+    },
+    "usage": {
+      "input_tokens": 396,
+      "output_tokens": 71,
+      "cost": 1.6632e-05
+    },
+    "id": "gen-dec-1792253638-JLePCnk6QrwbP6o1bCpl",
+    "provider": "TypeSafe"
+  }
+}

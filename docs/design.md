@@ -1,6 +1,6 @@
 # jevkit - Design (decision kernel for TypeSafe Jev)
 
-As of: 2026-09-21. Sources: docs.typesafe.ai (concepts, API, patterns, cookbooks, jaggedness jev-1.13) plus the Mantis benchmark (bench/jev, 86/92, Brier 0.046).
+As of: 2026-10-17. Sources: docs.typesafe.ai (concepts, API, patterns, cookbooks, jaggedness jev-1.14) plus the Mantis benchmark (bench/jev, 86/92, Brier 0.046).
 
 ## What Jev is
 
@@ -11,7 +11,7 @@ As of: 2026-09-21. Sources: docs.typesafe.ai (concepts, API, patterns, cookbooks
 - Limits: 64k context/request, 32k state + longest question. $0.042/1M input, output free. Rate limits are dynamic. Errors: 401/422/429/529 (+ Cloudflare 520 observed).
 - Instructions and criteria may be JSON (objects with `what`/`not_for`/`examples`, levels with `summary`/`signals`, dot references into the state).
 - Nearly deterministic (std dev 0.01 across repeats), but Nouls near 0.5 flip.
-- Endpoints with an identical body: `POST https://api.typesafe.ai/v1/systemone` (model `jev-latest`), `POST https://openrouter.ai/api/alpha/decisions` (model `~typesafe/jev-latest`). Response: `{model, answers, usage}`.
+- Endpoints with an identical body: `POST https://api.typesafe.ai/v1/systemone` (pinned model `jev-1.14.0`), `POST https://openrouter.ai/api/alpha/decisions` (pinned model `typesafe/jev-1.14-20261014`). Response: `{model, answers, usage}`. `latest` aliases differ by provider and are not defaults.
 
 ## Weaknesses (official + external) -> countermeasure
 

@@ -1,0 +1,71 @@
+{
+  "request": {
+    "model": "jev-1.14.0",
+    "state": {
+      "message": "Turn on the desk lamp right now please"
+    },
+    "questions": {
+      "action": {
+        "type": "noul",
+        "instructions": "Does the message ask the assistant to perform an action?"
+      },
+      "device": {
+        "type": "choice",
+        "instructions": "Which device is meant?",
+        "criteria": {
+          "lamp": "desk lamp",
+          "fan": "fan",
+          "__none__": "none of these"
+        }
+      },
+      "urgency": {
+        "type": "score",
+        "instructions": "How urgent is the request?",
+        "criteria": [
+          "not urgent",
+          "somewhat urgent",
+          "very urgent"
+        ]
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "jev-1.14.0",
+    "answers": {
+      "action": {
+        "type": "noul",
+        "noul": 0.99
+      },
+      "device": {
+        "type": "choice",
+        "choice": "lamp",
+        "confidence": 1.0,
+        "probabilities": {
+          "lamp": 1.0,
+          "fan": 0.0,
+          "__none__": 0.0
+        }
+      },
+      "urgency": {
+        "type": "score",
+        "score": 1.52,
+        "confidence": 0.27,
+        "legend": {
+          "0": "not urgent",
+          "1": "somewhat urgent",
+          "2": "very urgent"
+        },
+        "probabilities": {
+          "0": 0.01,
+          "1": 0.47,
+          "2": 0.52
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 396,
+      "output_tokens": 71
+    }
+  }
+}

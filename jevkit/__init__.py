@@ -14,6 +14,7 @@ from jevkit.client import Client, Decision, JevUnavailable
 from jevkit.compose import NONE_OPTION, composite, count, count_questions, extract, extract_questions
 from jevkit.gate import DEFAULT_BANDS, Band, Bands, Severity, band, check_pairs, consistent, demote
 from jevkit.log import DecisionLog, Record, state_hash
+from jevkit.models import JEV_1_13, JEV_1_14, KNOWN, PINNED, JevModel, model_version
 from jevkit.prompt_backend import PromptBackend
 from jevkit.questions import Choice, Noul, Score
 from jevkit.registry import DecisionSpec, Privacy, Registry, Router, Verdict
@@ -33,7 +34,7 @@ from jevkit.state import (
 from jevkit.taxonomy import Path, beam_search
 from jevkit.tools import TOOL_QID, Arg, Call, ToolSpec, call_questions, resolve_call
 
-__version__ = "0.1.3"
+__version__ = "0.2.0"
 
 __all__ = [
     "Noul", "Choice", "Score", "NoulAnswer", "ChoiceAnswer", "ScoreAnswer", "parse_answer",
@@ -49,4 +50,5 @@ __all__ = [
     "Privacy", "DecisionSpec", "Registry", "Verdict", "Router",
     "DecisionLog", "Record", "state_hash",
     "brier", "ece", "accuracy", "pairs_by_question", "noul_pairs", "suggest_bands",
+    "JevModel", "JEV_1_13", "JEV_1_14", "PINNED", "KNOWN", "model_version",
 ]

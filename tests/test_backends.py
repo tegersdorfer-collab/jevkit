@@ -11,6 +11,7 @@ from jevkit.backends import (
     StaticBackend,
     TypeSafeBackend,
 )
+from jevkit.models import JEV_1_13, JEV_1_14
 
 
 def _ok(request):
@@ -31,7 +32,7 @@ def test_typesafe_backend_sends_correct_body_and_header():
     r = asyncio.run(b.ask({"t": "x"}, {"q": {"type": "noul", "instructions": "?"}}, model=None, timeout_s=5))
     assert seen["url"] == "https://api.typesafe.ai/v1/systemone"
     assert seen["auth"] == "Bearer sk-ts"
-    assert seen["body"] == {"model": "jev-latest", "state": {"t": "x"},
+    assert seen["body"] == {"model": "jev-1.14.0", "state": {"t": "x"},
                             "questions": {"q": {"type": "noul", "instructions": "?"}}}
     assert r.model == "typesafe/jev-1.13" and r.answers["q"]["noul"] == 0.9 and r.usage["input_tokens"] == 5
 
@@ -45,7 +46,42 @@ def test_openrouter_backend_url_and_model():
     b = OpenRouterBackend("sk-or", transport=httpx.MockTransport(h))
     asyncio.run(b.ask("s", {"q": {"type": "noul", "instructions": "?"}}, model=None, timeout_s=5))
     assert seen["url"] == "https://openrouter.ai/api/alpha/decisions"
-    assert seen["model"] == "~typesafe/jev-latest"
+    assert seen["model"] == "typesafe/jev-1.14-20261014"
+
+
+@pytest.mark.parametrize(("backend_type", "model_id"), [
+    (TypeSafeBackend, "jev-1.13.0"),
+    (OpenRouterBackend, "typesafe/jev-1.13-20260917"),
+])
+def test_jev_model_selects_the_provider_specific_id(backend_type, model_id):
+    seen = {}
+
+    def handler(request):
+        seen["model"] = json.loads(request.content)["model"]
+        return _ok(request)
+
+    backend = backend_type("key", jev=JEV_1_13, transport=httpx.MockTransport(handler))
+    asyncio.run(backend.ask("s", {"q": {}}, model=None, timeout_s=5))
+    assert seen["model"] == model_id
+
+
+def test_model_override_accepts_latest_alias_and_cannot_mix_with_jev():
+    seen = {}
+
+    def handler(request):
+        seen["model"] = json.loads(request.content)["model"]
+        return _ok(request)
+
+    backend = TypeSafeBackend("key", model="jev-latest", transport=httpx.MockTransport(handler))
+    asyncio.run(backend.ask("s", {"q": {}}, model=None, timeout_s=5))
+    assert seen["model"] == "jev-latest"
+    with pytest.raises(ValueError, match="model or jev"):
+        TypeSafeBackend("key", model="jev-latest", jev=JEV_1_13)
+
+
+def test_backend_defaults_are_explicitly_pinned():
+    assert TypeSafeBackend("key").default_model == JEV_1_14.typesafe_id
+    assert OpenRouterBackend("key").default_model == JEV_1_14.openrouter_id
 
 
 def test_api_key_from_environment(monkeypatch):
