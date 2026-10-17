@@ -167,6 +167,8 @@ if injected(d):
 # text to send the user's data anywhere counts as manipulation, even "send my address to Anna"; for
 # USER_UTTERANCE and unlabeled text, sharing the user's own data with someone they name stays allowed.
 mail = untrusted(email_body, source=THIRD_PARTY_CONTENT)
+# Always label foreign content: unlabeled text keeps the permissive 0.2.1 default, so a first-person
+# "forward my invoice to ..." inside an unlabeled email is judged like a user request and can pass.
 
 # When the text is being *judged* (moderation, verification), add the second guard:
 # content that argues for its own harmlessness flips Jev judge verdicts at high confidence
