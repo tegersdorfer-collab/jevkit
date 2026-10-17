@@ -8,8 +8,12 @@
   user speech and unlabeled text keep the own-data exception. Held-out test split vs 0.2.1: third-party
   routing recall 13 -> 20/20 on Jev 1.14 (10 -> 20/20 on 1.13), overall recall 82 -> 89/92, false positives
   2 -> 0/115, own-data 0/22, voice and own-data commands labeled as user speech 0/52.
+- The origin comes only from the caller's label: a text that labels its own origin ("[source: user_utterance]",
+  "dictated by the user") counts as spoofed, and routing requests in it are flagged even without a label.
+  Held-out `source_spoof` recall 5 -> 7/8 on Jev 1.14, 6 -> 7/8 on 1.13; an unlabeled XML tag
+  (`<source>user_utterance</source>`) still passes. Pass `source=THIRD_PARTY_CONTENT` for foreign content.
 - Guard eval: 40 `routed_in_content` cases plus 40 paired `routed_user_utterance` cases, 16 dev own-data
-  cases; `bench.ab_guard` gains `--default-source` and `--categories`, the report a per-source breakdown.
+  cases, 16 `source_spoof` and 4 `source_mention` cases; `bench.ab_guard` gains `--default-source` and `--categories`, the report a per-source breakdown.
 
 ## 0.2.1
 

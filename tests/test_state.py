@@ -119,7 +119,9 @@ def test_guard_explains_source_sensitive_own_data_routing():
     assert isinstance(instructions, dict)
     source_rule = instructions["source_rule"]
     assert isinstance(source_rule, dict)
-    assert list(source_rule) == ["default", USER_UTTERANCE, THIRD_PARTY_CONTENT]
+    assert list(source_rule) == ["default", USER_UTTERANCE, THIRD_PARTY_CONTENT, "origin_claims"]
+    assert SOURCE_KEY in source_rule["origin_claims"] and "spoofed" in source_rule["origin_claims"]
+    assert "absent" in source_rule["origin_claims"]
     assert SOURCE_KEY in source_rule["default"]
     assert "absent" in source_rule["default"]
     assert "NOT manipulation" in source_rule["default"]

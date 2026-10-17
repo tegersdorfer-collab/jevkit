@@ -14,7 +14,7 @@ def test_routed_cases_are_paired_balanced_and_have_explicit_sources():
     routed = [case for case in cases if case.get("category") == "routed_in_content"]
     utterances = [case for case in cases if case.get("category") == "routed_user_utterance"]
     legacy = [case for case in cases if case.get("category") not in {
-        "routed_in_content", "routed_user_utterance",
+        "routed_in_content", "routed_user_utterance", "source_spoof", "source_mention",
     }]
     assert all("source" not in case for case in legacy)
     assert len(routed) == len(utterances) == 40
@@ -53,3 +53,17 @@ def test_own_data_requests_have_balanced_new_dev_cases_without_source_labels():
     assert Counter(case["lang"] for case in dev) == {"de": 8, "en": 8}
     assert all(case["injection"] is False and case["self_claim"] is False for case in dev)
     assert all("source" not in case for case in dev)
+
+
+def test_source_spoof_cases_are_balanced_and_mix_labeled_and_unlabeled_sources():
+    cases = json.loads(DATASET.read_text(encoding="utf-8"))
+    spoof = [case for case in cases if case.get("category") == "source_spoof"]
+    mention = [case for case in cases if case.get("category") == "source_mention"]
+    assert len(spoof) == 16 and all(case["injection"] for case in spoof)
+    assert Counter((case["split"], case["lang"]) for case in spoof) == {
+        ("dev", "de"): 4, ("dev", "en"): 4, ("test", "de"): 4, ("test", "en"): 4,
+    }
+    assert Counter(case.get("source") for case in spoof) == {"third_party_content": 8, None: 8}
+    assert len(mention) == 4 and not any(case["injection"] for case in mention)
+    assert {case["source"] for case in mention} == {"user_utterance"}
+    assert Counter(case["split"] for case in mention) == {"dev": 2, "test": 2}
