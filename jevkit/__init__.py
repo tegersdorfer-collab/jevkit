@@ -23,6 +23,9 @@ from jevkit.state import (
     GUARD_ID,
     SELF_CLAIM,
     SELF_CLAIM_ID,
+    SOURCE_KEY,
+    THIRD_PARTY_CONTENT,
+    USER_UTTERANCE,
     bucket,
     count_bucket,
     injected,
@@ -34,7 +37,7 @@ from jevkit.state import (
 from jevkit.taxonomy import Path, beam_search
 from jevkit.tools import TOOL_QID, Arg, Call, ToolSpec, call_questions, resolve_call
 
-__version__ = "0.2.1"
+__version__ = "0.2.2"
 
 __all__ = [
     "Noul", "Choice", "Score", "NoulAnswer", "ChoiceAnswer", "ScoreAnswer", "parse_answer",
@@ -42,7 +45,7 @@ __all__ = [
     "TypeSafeBackend", "OpenRouterBackend", "StaticBackend", "PromptBackend", "BackendError",
     "Band", "Bands", "Severity", "DEFAULT_BANDS", "band", "demote", "consistent", "check_pairs",
     "project", "bucket", "count_bucket", "relative_days", "untrusted", "GUARD", "GUARD_ID",
-    "SELF_CLAIM", "SELF_CLAIM_ID",
+    "SELF_CLAIM", "SELF_CLAIM_ID", "SOURCE_KEY", "USER_UTTERANCE", "THIRD_PARTY_CONTENT",
     "with_guard", "injected",
     "count_questions", "count", "composite", "extract_questions", "extract", "NONE_OPTION",
     "Arg", "ToolSpec", "Call", "call_questions", "resolve_call", "TOOL_QID",

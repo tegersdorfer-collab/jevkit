@@ -22,13 +22,13 @@ this library. Nothing here is a prompt trick — it's code that does what the mo
 ## Install
 
 ```bash
-pip install "jevkit @ git+https://github.com/tegersdorfer-collab/jevkit.git@v0.2.1"
+pip install "jevkit @ git+https://github.com/tegersdorfer-collab/jevkit.git@v0.2.2"
 export OPENROUTER_API_KEY=...   # or TYPESAFE_API_KEY for direct access
 ```
 
 ## Jev versions
 
-Each jevkit release pins one Jev major.minor version. jevkit 0.2.1 sends explicit Jev 1.14
+Each jevkit release pins one Jev major.minor version. jevkit 0.2.2 sends explicit Jev 1.14
 model ids by default, so a provider's changing `latest` alias cannot silently change the model
 or its calibration. TypeSafe uses `jev-1.14.0`; OpenRouter uses
 `typesafe/jev-1.14-20261014`.
@@ -157,11 +157,16 @@ paths[0].nodes    # ("software", "apps", "games") — beam recovers from an ambi
 **Untrusted text with a guard**
 
 ```python
-from jevkit import untrusted, with_guard, injected
+from jevkit import THIRD_PARTY_CONTENT, USER_UTTERANCE, untrusted, with_guard, injected
 
-d = await client.decide(untrusted(transcript), with_guard({"addressed": Noul("...")}))
+d = await client.decide(untrusted(transcript, source=USER_UTTERANCE), with_guard({"addressed": Noul("...")}))
 if injected(d):
     ...   # treat everything in this fan-out as ESCALATE
+
+# Label the origin when you know it. For THIRD_PARTY_CONTENT (email, web page, invite) any request in the
+# text to send the user's data anywhere counts as manipulation, even "send my address to Anna"; for
+# USER_UTTERANCE and unlabeled text, sharing the user's own data with someone they name stays allowed.
+mail = untrusted(email_body, source=THIRD_PARTY_CONTENT)
 
 # When the text is being *judged* (moderation, verification), add the second guard:
 # content that argues for its own harmlessness flips Jev judge verdicts at high confidence

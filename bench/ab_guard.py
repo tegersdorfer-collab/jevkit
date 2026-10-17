@@ -26,7 +26,7 @@ from bench._common import (
 )
 from jevkit.backends import Backend
 from jevkit.models import JevModel
-from jevkit.state import GUARD, SELF_CLAIM, untrusted
+from jevkit.state import GUARD, SELF_CLAIM, THIRD_PARTY_CONTENT, USER_UTTERANCE, untrusted
 
 
 def load_guard_from_ref(ref: str) -> Any:
@@ -60,6 +60,8 @@ async def run_guard(
     concurrency: int = 8,
     out_path: str | Path | None = None,
     split: str = "all",
+    default_source: str | None = None,
+    categories: Sequence[str] | str | None = None,
     baseline_ref: str | None = None,
     baseline_guard: Any | None = None,
     env_values: dict[str, str] | None = None,
@@ -68,6 +70,14 @@ async def run_guard(
     """Run guard and self-claim questions against selected labeled texts."""
     if split not in {"dev", "test", "all"}:
         raise ValueError("split must be dev, test, or all")
+    valid_sources = {USER_UTTERANCE, THIRD_PARTY_CONTENT}
+    if default_source is not None and default_source not in valid_sources:
+        raise ValueError("default_source must be user_utterance, third_party_content, or None")
+    if isinstance(categories, str):
+        categories = [category.strip() for category in categories.split(",") if category.strip()]
+        if not categories:
+            raise ValueError("categories must contain at least one category")
+    selected_categories = set(categories) if categories is not None else None
     if baseline_ref and baseline_guard is not None:
         raise ValueError("pass baseline_ref or baseline_guard, not both")
     if baseline_ref:
@@ -77,7 +87,11 @@ async def run_guard(
         raise ValueError("reps must be at least 1")
     if concurrency < 1:
         raise ValueError("concurrency must be at least 1")
-    chosen_cases = [case for case in cases if split == "all" or case.get("split") == split]
+    chosen_cases = [
+        case for case in cases
+        if (split == "all" or case.get("split") == split)
+        and (selected_categories is None or case.get("category") in selected_categories)
+    ]
     questions = {"current": GUARD.payload()}
     if baseline_guard is not None:
         questions["baseline"] = baseline_guard.payload()
@@ -91,16 +105,19 @@ async def run_guard(
 
     async def one(case: dict[str, Any], model: JevModel, rep: int) -> dict[str, Any]:
         model_id = provider_model_id(model, provider)
+        effective_source = case["source"] if "source" in case else default_source
         metadata = {key: case[key] for key in (
             "id", "lang", "category", "text", "injection", "self_claim", "split"
         ) if key in case}
+        metadata["source"] = effective_source
         base = {**metadata, "model": model_id, "rep": rep}
         started = time.perf_counter()
         try:
             async with semaphore:
                 started = time.perf_counter()
                 response = await backends[model].ask(
-                    untrusted(case["text"]), questions, model=model_id, timeout_s=30.0
+                    untrusted(case["text"], source=effective_source), questions,
+                    model=model_id, timeout_s=30.0
                 )
             elapsed = time.perf_counter() - started
             answers = response.answers
@@ -131,6 +148,9 @@ def _parser() -> argparse.ArgumentParser:
                         help="comma-separated Jev ids or versions")
     parser.add_argument("--provider", choices=("typesafe", "openrouter"), default="typesafe")
     parser.add_argument("--split", choices=("dev", "test", "all"), default="all")
+    parser.add_argument("--default-source", choices=("none", USER_UTTERANCE, THIRD_PARTY_CONTENT),
+                        default="none", help="source applied to cases without a source field")
+    parser.add_argument("--categories", help="comma-separated categories; default is all")
     parser.add_argument("--reps", type=int, default=3)
     parser.add_argument("--concurrency", type=int, default=8)
     parser.add_argument("--baseline-ref", help="git ref whose jevkit/state.py supplies the baseline GUARD")
@@ -146,6 +166,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     env_values = load_env_file(args.env_file)
     rows = asyncio.run(run_guard(
         cases, models=args.models, provider=args.provider, split=args.split,
+        default_source=None if args.default_source == "none" else args.default_source,
+        categories=args.categories,
         reps=args.reps, concurrency=args.concurrency, out_path=output,
         baseline_ref=args.baseline_ref, env_values=env_values,
     ))

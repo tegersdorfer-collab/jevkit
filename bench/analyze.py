@@ -262,11 +262,18 @@ def analyze_decisions(
     return {"models": metrics, "pair": pair}
 
 
-def _guard_case_groups(rows: Sequence[dict[str, Any]]) -> dict[tuple[str, str], list[dict[str, Any]]]:
-    grouped: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
+def _effective_guard_source(row: dict[str, Any]) -> str:
+    source = row.get("source")
+    return "none" if source is None else str(source)
+
+
+def _guard_case_groups(
+    rows: Sequence[dict[str, Any]],
+) -> dict[tuple[str, str, str], list[dict[str, Any]]]:
+    grouped: dict[tuple[str, str, str], list[dict[str, Any]]] = defaultdict(list)
     for row in rows:
         if "error" not in row:
-            grouped[(str(row["model"]), str(row["id"]))].append(row)
+            grouped[(str(row["model"]), str(row["id"]), _effective_guard_source(row))].append(row)
     return grouped
 
 
@@ -284,13 +291,14 @@ def analyze_guard(rows: Sequence[dict[str, Any]], *, threshold: float = 0.5) -> 
     errors: list[dict[str, Any]] = []
     for model in model_order:
         model_case_rows = {
-            case_id: case_rows for (case_model, case_id), case_rows in grouped.items()
+            (case_id, source): case_rows
+            for (case_model, case_id, source), case_rows in grouped.items()
             if case_model == model
         }
         for wording in wordings:
             score_key = f"p_{wording}"
             observations: list[dict[str, Any]] = []
-            for case_id, case_rows in model_case_rows.items():
+            for (case_id, source), case_rows in model_case_rows.items():
                 values = [float(row[score_key]) for row in case_rows if row.get(score_key) is not None]
                 if not values:
                     continue
@@ -301,6 +309,7 @@ def analyze_guard(rows: Sequence[dict[str, Any]], *, threshold: float = 0.5) -> 
                 )
                 observations.append({
                     "id": case_id, "category": first.get("category", "unknown"),
+                    "source": source,
                     "text": first.get("text", ""), "label": label,
                     "score": statistics.mean(values),
                 })
@@ -323,6 +332,20 @@ def analyze_guard(rows: Sequence[dict[str, Any]], *, threshold: float = 0.5) -> 
                     "false_positive_rate": category_fp / len(neg) if neg else None,
                     "true_positive": category_tp, "false_positive": category_fp,
                 }
+            per_source: dict[str, dict[str, Any]] = {}
+            sources = sorted({item["source"] for item in observations})
+            for source in sources:
+                members = [item for item in observations if item["source"] == source]
+                pos = [item for item in members if item["label"]]
+                neg = [item for item in members if not item["label"]]
+                source_tp = sum(item["score"] >= threshold for item in pos)
+                source_fp = sum(item["score"] >= threshold for item in neg)
+                per_source[source] = {
+                    "cases": len(members), "positive": len(pos), "negative": len(neg),
+                    "recall": source_tp / len(pos) if pos else None,
+                    "false_positive_rate": source_fp / len(neg) if neg else None,
+                    "true_positive": source_tp, "false_positive": source_fp,
+                }
             groups[(model, wording)] = {
                 "cases": len(observations), "positive": len(positive), "negative": len(negative),
                 "recall": tp / len(positive) if positive else None,
@@ -333,6 +356,7 @@ def analyze_guard(rows: Sequence[dict[str, Any]], *, threshold: float = 0.5) -> 
                     [item["score"] for item in positive], [item["score"] for item in negative]
                 ),
                 "per_category": per_category,
+                "per_source": per_source,
             }
             for item in observations:
                 predicted = item["score"] >= threshold
@@ -340,7 +364,8 @@ def analyze_guard(rows: Sequence[dict[str, Any]], *, threshold: float = 0.5) -> 
                     errors.append({
                         "model": model, "wording": wording, "id": item["id"],
                         "error": "miss" if item["label"] else "false positive",
-                        "score": item["score"], "category": item["category"], "text": item["text"],
+                        "score": item["score"], "category": item["category"],
+                        "source": item["source"], "text": item["text"],
                     })
     errors.sort(key=lambda item: (item["model"], item["wording"], item["id"]))
     request_errors = [
@@ -443,15 +468,27 @@ def render_guard_report(result: dict[str, Any]) -> str:
                     f"| {metrics['negative']} | {_fmt(metrics['recall'])} "
                     f"| {_fmt(metrics['false_positive_rate'])} |"
                 )
+    for (model, wording), item in result["groups"].items():
+        if item["per_source"]:
+            lines.extend(["", f"## Per source: {_escape(model)} / {_escape(wording)}", "",
+                          "| Source | Cases | Positive | Negative | Recall | FP rate |",
+                          "|---|---:|---:|---:|---:|---:|"])
+            for source, metrics in item["per_source"].items():
+                lines.append(
+                    f"| {_escape(source)} | {metrics['cases']} | {metrics['positive']} "
+                    f"| {metrics['negative']} | {_fmt(metrics['recall'])} "
+                    f"| {_fmt(metrics['false_positive_rate'])} |"
+                )
     lines.extend(["", f"## Errors ({len(result['errors'])})", ""])
     if result["errors"]:
-        lines.extend(["| Model | Wording | Case | Error | Score | Category | Text |",
-                      "|---|---|---|---|---:|---|---|"])
+        lines.extend(["| Model | Wording | Case | Error | Score | Category | Source | Text |",
+                      "|---|---|---|---|---:|---|---|---|"])
         for item in result["errors"]:
             lines.append(
                 f"| {_escape(item['model'])} | {_escape(item['wording'])} | {_escape(item['id'])} "
                 f"| {_escape(item['error'])} | {_fmt(item['score'])} "
-                f"| {_escape(item['category'])} | {_escape(item['text'])} |"
+                f"| {_escape(item['category'])} | {_escape(item['source'] or 'none')} "
+                f"| {_escape(item['text'])} |"
             )
     else:
         lines.append("None.")

@@ -26,6 +26,10 @@ choose `dev`, `test`, or `all` with `--split`. `--baseline-ref` loads `GUARD` fr
 `jevkit/state.py` into a temporary isolated module. The current wording is always `jevkit.state.GUARD`, and
 `SELF_CLAIM` is scored alongside it.
 
+Guard cases may include `"source": "user_utterance"` or `"source": "third_party_content"`; rows record the
+effective source. Cases without a source keep the legacy behavior by default. `--default-source` can apply one
+of those labels to source-less cases, and `--categories a,b,...` limits a run to selected categories.
+
 The default models are the previous known version and the current `PINNED` version. `--models` accepts comma-
 separated Jev versions such as `1.13,1.14`, constant labels such as `JEV_1_13,JEV_1_14`, or provider ids.
 TypeSafe and OpenRouter ids are selected from each `JevModel`; the benchmark does not use a moving `latest`

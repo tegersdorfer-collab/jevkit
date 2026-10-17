@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.2
+
+- `untrusted(text, source=...)` takes an optional origin label, `USER_UTTERANCE` or `THIRD_PARTY_CONTENT`
+  (new `SOURCE_KEY` state field). Without it the state is unchanged. For third-party content the guard treats
+  every request to route the user's data to a recipient as manipulation, including first-person phrasing;
+  user speech and unlabeled text keep the own-data exception. Held-out test split vs 0.2.1: third-party
+  routing recall 13 -> 20/20 on Jev 1.14 (10 -> 20/20 on 1.13), overall recall 82 -> 89/92, false positives
+  2 -> 0/115, own-data 0/22, voice and own-data commands labeled as user speech 0/52.
+- Guard eval: 40 `routed_in_content` cases plus 40 paired `routed_user_utterance` cases, 16 dev own-data
+  cases; `bench.ab_guard` gains `--default-source` and `--categories`, the report a per-source breakdown.
+
 ## 0.2.1
 
 - Guard E flags third-party exfiltration and indirect instructions while allowing requests for the user's own
