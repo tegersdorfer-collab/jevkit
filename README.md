@@ -22,16 +22,20 @@ this library. Nothing here is a prompt trick — it's code that does what the mo
 ## Install
 
 ```bash
-pip install "jevkit @ git+https://github.com/tegersdorfer-collab/jevkit.git@v0.2.0"
+pip install "jevkit @ git+https://github.com/tegersdorfer-collab/jevkit.git@v0.2.1"
 export OPENROUTER_API_KEY=...   # or TYPESAFE_API_KEY for direct access
 ```
 
 ## Jev versions
 
-Each jevkit release pins one Jev major.minor version. jevkit 0.2.0 sends explicit Jev 1.14
+Each jevkit release pins one Jev major.minor version. jevkit 0.2.1 sends explicit Jev 1.14
 model ids by default, so a provider's changing `latest` alias cannot silently change the model
 or its calibration. TypeSafe uses `jev-1.14.0`; OpenRouter uses
 `typesafe/jev-1.14-20261014`.
+
+Use the tracked [`bench/`](bench/README.md) upgrade benchmark to compare decisions and guard scores on labeled
+cases before moving the pin. It reports accuracy, calibration, guard recall, false positives, and cases whose
+result changed between models.
 
 To stay on Jev 1.13, select its provider-specific ids with `jev=JEV_1_13`:
 

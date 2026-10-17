@@ -19,4 +19,4 @@ def test_all_exports_present():
     missing = [n for n in names if not hasattr(jevkit, n)]
     assert missing == []
     assert set(names) <= set(jevkit.__all__)
-    assert jevkit.__version__ == "0.2.0"
+    assert jevkit.__version__ == "0.2.1"

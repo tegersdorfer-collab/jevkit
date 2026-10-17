@@ -7,3 +7,6 @@ build/
 dist/
 .superpowers/
 .worktrees/
+bench/local/
+bench/results/
+bench/_scratch/

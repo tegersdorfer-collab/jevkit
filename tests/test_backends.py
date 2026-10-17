@@ -103,6 +103,19 @@ def test_retry_on_520_then_success():
     assert calls["n"] == 2 and r.answers["q"]["noul"] == 0.9
 
 
+def test_permanent_server_error_is_not_retried():
+    calls = {"n": 0}
+
+    def h(request):
+        calls["n"] += 1
+        return httpx.Response(501)
+
+    b = TypeSafeBackend("k", transport=httpx.MockTransport(h), retries=3, backoff_s=0.0)
+    with pytest.raises(BackendError) as e:
+        asyncio.run(b.ask("s", {"q": {}}, model=None, timeout_s=5))
+    assert calls["n"] == 1 and e.value.retryable is False
+
+
 def test_retry_reuses_one_async_client(monkeypatch):
     created = []
     client_type = backends.httpx.AsyncClient

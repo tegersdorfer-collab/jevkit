@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.1
+
+- Guard E flags third-party exfiltration and indirect instructions while allowing requests for the user's own
+  data. On the held-out test split, recall rose from 61 to 68/72 on Jev 1.14 and from 63 to 70/72 on Jev 1.13;
+  there were 0/73 benign false positives and 0/22 own-data false positives on Jev 1.14.
+- Add a reusable upgrade benchmark for decisions and guard wording comparisons, with JSONL results and Markdown
+  analysis reports.
+
 ## 0.2.0
 
 - Pin Jev 1.14 explicitly per provider; add provider-independent model version checks and `jev=` selection.

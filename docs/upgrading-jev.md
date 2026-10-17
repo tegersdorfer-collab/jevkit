@@ -17,9 +17,25 @@ behavior; adopting it requires a jevkit minor release.
    provider. The live suite reports all guard mismatches together.
 5. Collect real labeled outcomes for the new model and use `calibrate.suggest_bands` to derive
    new bands. Review the measurements before adopting them.
-6. Set `PINNED` to the candidate model after its live behavior and calibration have been reviewed.
+6. Run the upgrade benchmark against the current pin before switching `PINNED`. Include decisions and the
+   held-out guard test split; compare the candidate with the pinned Jev model and, when evaluating guard wording,
+   pass a ref to the previous `jevkit/state.py` as the baseline:
+
+   ```sh
+   python3 -m bench.ab_decisions bench/local/decisions.json --models JEV_1_14,JEV_1_15 \
+     --out bench/results/decisions-candidate.jsonl
+   python3 -m bench.ab_guard --models JEV_1_14,JEV_1_15 --split test --baseline-ref v0.2.0 \
+     --out bench/results/guard-candidate.jsonl
+   python3 -m bench.analyze decisions bench/results/decisions-candidate.jsonl
+   python3 -m bench.analyze guard bench/results/guard-candidate.jsonl
+   ```
+
+   Review accuracy and calibration, guard recall and false positives, and every flipped case. See
+   [`bench/README.md`](../bench/README.md) for result interpretation and private-dataset handling.
+7. Set `PINNED` to the candidate model after its live behavior, calibration, and benchmark results have been
+   reviewed.
    Keep the previous model in `KNOWN` so callers can continue selecting it with `jev=`.
-7. Bump the jevkit minor version, update `CHANGELOG.md` and README, then tag the release.
+8. Bump the jevkit minor version, update `CHANGELOG.md` and README, then tag the release.
 
 Do not use a provider's `latest` alias as the default model. It can resolve to different Jev
 versions on TypeSafe and OpenRouter.
