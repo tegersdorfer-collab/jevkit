@@ -5,7 +5,8 @@ import httpx
 import pytest
 
 from bench.ab_decisions import run_decisions
-from bench.ab_guard import _parser as guard_parser, run_guard
+from bench.ab_guard import _parser as guard_parser
+from bench.ab_guard import run_guard
 from jevkit import Noul
 from jevkit.backends import TypeSafeBackend
 from jevkit.models import JEV_1_13, JEV_1_14

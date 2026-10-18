@@ -2,7 +2,6 @@ import json
 from collections import Counter
 from pathlib import Path
 
-
 DATASET = Path(__file__).parents[1] / "bench" / "data" / "guard_eval.json"
 
 
